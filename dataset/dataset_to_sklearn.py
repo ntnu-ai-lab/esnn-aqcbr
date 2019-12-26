@@ -108,11 +108,10 @@ def makeFakeYield(featurearr, targetarr):
 
 
 def getDatasetInfo(dataset, multilabelbin=True,
-                 n_splits=None, df=None, datasetInfo=None,
-                 n_samples=0, n_features=0, colnames=None,
-                 classcols=[], featurecols=[], targetcols=[],
-                 targetcolindexes=[], dropcols=[], colmap={}
-                 ):
+                   n_splits=None, df=None, datasetInfo=None,
+                   n_samples=0, n_features=0, colnames=None,
+                   classcols=[], featurecols=[], targetcols=[],
+                   targetcolindexes=[], dropcols=[], colmap={}):
     for col in datasetInfo["cols"]:
         if col["class"] is True:
             classcols.append(col)
@@ -148,12 +147,13 @@ def getDatasetInfo(dataset, multilabelbin=True,
     #make two separate view of the df, one for all features and one for the targetvariable
     #featuredfview = df.loc[;,featurecols]
 
-
     columns_to_scale = []
     columns_to_binarize = []
     feature_names = []
     isregression = False
-    #go through all the input features and find out which type of preprocessing they need
+
+    # go through all the input features and find
+    # out which type of preprocessing they need
     for i in range(0,len(datasetInfo["cols"])):
         colname = datasetInfo["cols"][i]["name"]
         coltype = datasetInfo["cols"][i]["type"]
@@ -212,13 +212,14 @@ def getDatasetInfo(dataset, multilabelbin=True,
             featuremapperlist.append((col, MyLabelBinarizer()))
         else:
             featuremapperlist.append((col, LabelEncoder()))
+
+    # add all columns to be scaled, numeric column etc.
     for col in columns_to_scale:
-        df.loc[:,(col)] = df.loc[:,(col)].apply(pd.to_numeric)
+        df.loc[:, (col)] = df.loc[:, (col)].apply(pd.to_numeric)
         featuremapperlist.append(([col], MinMaxScaler()))
     featuremapper = DataFrameMapper(featuremapperlist, df_out=True)
 
     # make the list of different mapping of the target columns
-
     target_names = []
     targetmapperlist = []
     for targetcolindex, targetcolname in zip(targetcolindexes, targetcols):
@@ -245,6 +246,7 @@ def getDatasetInfo(dataset, multilabelbin=True,
 
     return featuremapper, targetmapper, target_names, \
         isregression, featurecols, targetcols, colmap
+
 
 def adapt(df, featuremapper, targetmapper,
           featurecols, targetcols, datadict, colmap):

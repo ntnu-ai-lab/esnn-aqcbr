@@ -172,6 +172,39 @@ datamap = {
         ]
 
     },
+    "opsitu": {
+        "dataUrl": "/lhome/bjornmm/annSimilarity/opsitu.csv",
+        "headers": 0, #first line is header
+        "augmentTrainingData": ,
+        "sep": ",",
+        "num_classes": 1,
+        "cols": [{"name": "index", "type": "skip", "class": False},
+                 {"name": "sitename", "type": "skip", "class": False},
+                 {"name": "date", "type": "skip", "class": False},
+                 # {"name": "skip", "type": "skip", "class": False},
+                 {"name": "wind_speed", "type": np.float32, "class": False},
+                 {"name": "wind_from_direction", "type": np.float32, "class": False},
+                 {"name": "wind_effect", "type": np.float32, "class": False},
+                 {"name": "weatherhindrance", "type": "nominal", "class": True},
+                 {"name": "sdistance", "type": np.float32, "class": False}
+        ]
+    },
+    "opsitubal": {
+        "dataUrl": "/lhome/bjornmm/annSimilarity/opsitu-bal.csv",
+        "headers": 0,  # first line is header
+        "sep": ",",
+        "num_classes": 1,
+        "cols": [{"name": "index", "type": "skip", "class": False},
+                 {"name": "sitename", "type": "skip", "class": False},
+                 {"name": "date", "type": "skip", "class": False},
+                 # {"name": "skip", "type": "skip", "class": False},
+                 {"name": "wind_speed", "type": np.float32, "class": False},
+                 {"name": "wind_from_direction", "type": np.float32, "class": False},
+                 {"name": "wind_effect", "type": np.float32, "class": False},
+                 {"name": "weatherhindrance", "type": "nominal", "class": True},
+                 {"name": "sdistance", "type": np.float32, "class": False}
+                 ]
+    },
     "bal": {
         "dataUrl": "http://archive.ics.uci.edu/ml/machine-learning-databases/balance-scale/balance-scale.data",
         "headers": None,
@@ -625,11 +658,18 @@ class Dataset():
             na_values = None
             if "na_values" in self.datasetInfo:
                 na_values = self.datasetInfo["na_values"]
-            self.df = pd.read_csv(safeGetDF(url), header=self.datasetInfo["headers"],
-                                  names=colnames, dtype=dtypedict,
-                                  usecols=usecols,
-                                  sep=self.datasetInfo["sep"],
-                                  na_values=na_values)
+            if "http" in url:
+                self.df = pd.read_csv(safeGetDF(url), header=self.datasetInfo["headers"],
+                                      names=colnames, dtype=dtypedict,
+                                      usecols=usecols,
+                                      sep=self.datasetInfo["sep"],
+                                      na_values=na_values)
+            else: #this is a local file..
+                self.df = pd.read_csv(url, header=self.datasetInfo["headers"],
+                                      names=colnames, dtype=dtypedict,
+                                      usecols=usecols,
+                                      sep=self.datasetInfo["sep"],
+                                      na_values=na_values)
         if "pre_process" in self.datasetInfo:
             self.df = self.datasetInfo["pre_process"](self.df)
             #print(self.df)

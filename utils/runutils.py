@@ -466,9 +466,9 @@ def iteration(anynominal, args, callbacks, colmap, data,
         # min_recall_loss = np.min(callback.recall_loss)
         min_retain_loss = 1
         if doevaluation:
-            res = eval_func(model, data[test], target[test], data[train],
-                            target[train], batch_size=args.batchsize,
-                            anynominal=anynominal, colmap=colmap)
+            res, errdistvec, truedistvec = eval_func(model, data[test], target[test], data[train],
+                                                     target[train], batch_size=args.batchsize,
+                                                     anynominal=anynominal, colmap=colmap)
 
             acc = np.sum(res) / len(res)
             min_retain_loss = 1.0 - acc

@@ -82,14 +82,17 @@ def eval_normal_ann_l1(model, test_data, test_target, train_data,
 
     return error_vec
 
-def getAscOrDescIndex(shape,asc):
+def getAscOrDescIndex(shape, asc):
     if asc:
         return shape-1
     else:
         return 0
+
 def eval_dual_ann(model, test_data, test_target, train_data,
-                   train_target, batch_size, anynominal=False, colmap=None, gabel=False):
-    return _eval_dual_ann(model, test_data, test_target, train_data, train_target, batch_size, anynominal, colmap,
+                  train_target, batch_size, anynominal=False, 
+                  colmap=None, gabel=False):
+    return _eval_dual_ann(model, test_data, test_target, train_data,
+                          train_target, batch_size, anynominal, colmap,
                           gabel=gabel, distance=True)
 
 
@@ -107,6 +110,77 @@ def eval_chopra_ann(model, test_data, test_target, train_data,
                          train_target, batch_size, anynominal, colmap,
                          gabel=False, distance=True)
 
+
+def roc(matrix, distindex, true_label, label_index, start, stop, delta):
+    """This function calculates ROC/AUC and F2
+
+    Args:
+       matrix the datamatric
+       distindex the column index of the distance in the matrix
+       true_label the true label
+       label_index index of the label in the data martix
+       start start point for the ROC curve
+       stop stop point for the ROC curve
+       delta delta of how much to move for each iteration in the ROC curve
+
+    Returns: ROC/AUC and F2
+    yup
+
+    """
+
+    iters = (stop-start)/delta
+    datalist = []
+    for t in range (start,stop,delta):
+        tp, fp, tn, fn, totn, totp = auc(matrix, t, distindex,
+                                         true_label, label_index,)
+        datalist.append({"tp":tp, "fp":fp, "tn": tn, "fn": fn, 
+                         "totn": totn, "totp": totp, "t": t})
+    return pd.Dataframme(data=datalist)
+
+def auc(matrix, threshold, distindex, true_label, label_index):
+    tp = 0
+    fp = 0
+    tn = 0
+    fn = 0
+    totp = 0
+    totn = 0
+    for i in range(0, matrix.shape[0]):
+        label = matrix[i, label_index]
+        if label == true_label:
+            totp += 1
+            if matrix[i, distindex] < threshold:
+                tp += 1
+            else:
+                fp += 1
+        else:
+            totn += 1
+            if matrix[i, distindex] >= threshold:
+                tn += 1
+            else:
+                fn += 1
+    return tp, fp, tn, fn, totn, totp
+
+
+def old_auc(matrix, threshold, distindex, true_label, label_index):
+    belowtindexes = [np.where(r[distindex] < threshold) for r in matrix]
+    tp = 0
+    fp = 0
+    for i in range(0,len(belowtindexes)):
+        label = matrix[belowtindexes[i],label_index]
+        if label == true_label:
+            tp += 1
+        else:
+            fp += 1
+    abovetindexes = [np.where(r[distindex] >= threshold) for r in matrix]
+    totp = 0
+    fotn = 0
+    for i in range(0,len(abovetindexes)):
+        label = matrix[abovetindexes[i],label_index]
+        if label == true_label:
+            tp += 1
+        else:
+            fp += 1
+    return tp, fp 
 
 def _eval_dual_ann(model, test_data, test_target, train_data, train_target,
                    batch_size, anynominal=False, colmap=None,
@@ -165,7 +239,7 @@ def _eval_dual_ann(model, test_data, test_target, train_data, train_target,
     )
     tot_maximums = np.max(longtable, axis=0)
     tot_minimums = np.min(longtable, axis=0)
-
+    errdict = {}
     #printhisto(pred_vec)
     #for debugoutput we add a colummn that sums the training data at that row (too see to what degree the magnitude of that vector affects the network output)
 
@@ -179,6 +253,8 @@ def _eval_dual_ann(model, test_data, test_target, train_data, train_target,
     combinedata[:,(train_data.shape[1] * 2)+(2*test_target.shape[1]):(train_data.shape[1] * 2)+(2*test_target.shape[1])+1] = pred_vec
     #sortecombineddata = combinedata[combinedata[:,combinedata.shape[1]-1].argsort()]
     #now we have the similarities, we need to sort on the network output
+    errdistvec = dict()
+    truedistvec = dict()
     errvec = list()
     heh = 0
     for i in range(0, test_data.shape[0]):
@@ -189,16 +265,27 @@ def _eval_dual_ann(model, test_data, test_target, train_data, train_target,
         #extract the true labels/reg output of those rows for train and test respectively, compare if they are indeed the same..
         index = getAscOrDescIndex(sortedsubset.shape[0], not distance)
         err = evalSortedsubset(sortedsubset,index,train_data.shape[1],test_target.shape[1])
+        true_target_value = sortedsubset[index, (train_data.shape[1] * 2) + test_target.shape[1]:(train_data.shape[1] * 2) + (2 * test_target.shape[1])]
+        tv = np.where(true_target_value == 1)[0][0]
         if err is False:
+            if tv in errdistvec:
+                errdistvec[tv] += 1
+            else:
+                errdistvec[tv] = 0
             heh += 1
             # print(f"boop {heh}")
+        else:
+            if tv in truedistvec:
+                truedistvec[tv] += 1
+            else:
+                truedistvec[tv] = 0
         errvec.append(err)
         #if np.equal(np.rint(this_train_target),np.rint(this_test_target)).all():
         #    errvec.append(1.0)
         #else:
         #    errvec.append(0)
 
-    return errvec
+    return errvec, errdistvec, truedistvec
 import operator
 
 
