@@ -48,7 +48,7 @@ def esnn(o_X, o_Y, X, Y, datasetname, regression=False,
 
     model.compile(optimizer=optimizer["constructor"](),
                   loss=loss_dict,
-                  metrics=['accuracy'],loss_weights=lossweight_dict)
+                  metrics=['acc','mse'],loss_weights=lossweight_dict)
 
     features, targets, Y1, Y2 = makeTrainingData(X, Y, regression, distance=True)
     training_data = [features[:,0:X.shape[1]],features[:,X.shape[1]:2*X.shape[1]]]

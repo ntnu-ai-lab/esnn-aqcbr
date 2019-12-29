@@ -264,9 +264,11 @@ def _eval_dual_ann(model, test_data, test_target, train_data, train_target,
         sortedsubset = subset[subset[:, subset.shape[1] - 2].argsort()]
         #extract the true labels/reg output of those rows for train and test respectively, compare if they are indeed the same..
         index = getAscOrDescIndex(sortedsubset.shape[0], not distance)
-        err = evalSortedsubset(sortedsubset,index,train_data.shape[1],test_target.shape[1])
+        err = evalSortedsubset(sortedsubset, index,
+                               train_data.shape[1],
+                               test_target.shape[1])
         true_target_value = sortedsubset[index, (train_data.shape[1] * 2) + test_target.shape[1]:(train_data.shape[1] * 2) + (2 * test_target.shape[1])]
-        tv = np.where(true_target_value == 1)[0][0]
+        tv = str(np.where(true_target_value == 1)[0][0])
         if err is False:
             if tv in errdistvec:
                 errdistvec[tv] += 1
@@ -436,13 +438,15 @@ def _eval_dual_ann_big(model, test_data, test_target, train_data,
         #finally we add the last column which is the networks evaluation of the similiarity of the pair of datapoints at row i.
         thistest[:,(train_data.shape[1] * 2):(train_data.shape[1] * 2)+1] = pred_vec
         #sortecombineddata = combinedata[combinedata[:,combinedata.shape[1]-1].argsort()]
-            #now we have the similarities, we need to sort on the network output
+        #now we have the similarities, we need to sort on the network output
 
 
         sortedsubset = thistest[thistest[:, -1].argsort()]
         #extract the true labels/reg output of those rows for train and test respectively, compare if they are indeed the same..
         index = getAscOrDescIndex(sortedsubset.shape[0], gabel)
-        this_train_target = sortedsubset[index, train_data.shape[1]:train_data.shape[1] * 2]
+        this_train_target = sortedsubset[index,
+                                         train_data.shape[1]:
+                                         train_data.shape[1] * 2]
         this_test_target = sortedsubset[index, 0:train_data.shape[1]]
 
         if np.equal(np.rint(this_train_target),np.rint(this_test_target)).all():
@@ -457,7 +461,8 @@ def printhisto(targetmatrix):
     counts = df.iloc[:,targetmatrix.shape[1]-1].value_counts()
     print(counts)
 
-def test(a,b):
+
+def test(a, b):
     # Unfortunatly you need to use structured arrays:
     sorted = np.ascontiguousarray(a).view([('', a.dtype)] * a.shape[-1]).ravel()
 
@@ -472,11 +477,11 @@ def test(a,b):
     result = sorted[ind] == b_comp
     return result
 
-def test2(a,b):
+
+def test2(a, b):
     matches = list()
     for line in a:
         if any(np.equal(b,line).all(1)):
             matches.append(line)
 
     return matches
-

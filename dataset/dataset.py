@@ -15,6 +15,7 @@ from io import StringIO
 from pandas_datareader.compat import bytes_to_str
 import xlrd
 from dataset.binarizer import MyLabelBinarizer
+from dataset.opsitu.datahelper import balancetraining
 __name__ = "dataset"
 """
 from https://stackoverflow.com/questions/31947140/sklearn-labelbinarizer-returns-vector-when-there-are-2-classes
@@ -173,9 +174,9 @@ datamap = {
 
     },
     "opsitu": {
-        "dataUrl": "/lhome/bjornmm/annSimilarity/opsitu.csv",
+        "dataUrl": "http://www.idi.ntnu.no/~bjornmm/opsitu.csv",
         "headers": 0, #first line is header
-        "augmentTrainingData": ,
+        "augmentTrainingData": balancetraining,
         "sep": ",",
         "num_classes": 1,
         "cols": [{"name": "index", "type": "skip", "class": False},
@@ -190,7 +191,7 @@ datamap = {
         ]
     },
     "opsitubal": {
-        "dataUrl": "/lhome/bjornmm/annSimilarity/opsitu-bal.csv",
+        "dataUrl": "http://www.idi.ntnu.no/~bjornmm/opsitu-bal.csv",
         "headers": 0,  # first line is header
         "sep": ",",
         "num_classes": 1,

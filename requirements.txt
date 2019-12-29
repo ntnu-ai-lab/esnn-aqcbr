@@ -1,5 +1,5 @@
 requests_cache
-tensorflow-gpu<2.0
+# tensorflow-gpu<2.0
 tensorflow<2.0
 pandas
 pandas-datareader

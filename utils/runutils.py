@@ -20,6 +20,7 @@ from utils.KerasCallbacks import callbackdict
 import argparse
 import sys
 import hashlib
+import pandas as pd
 
 def splitNoEscapes(string, char):
     if string is None or len(string) < 2:
@@ -433,9 +434,18 @@ def iteration(anynominal, args, callbacks, colmap, data,
     hist = None
     time_start = time.time()
     if trainer is not None:
+        test_data = data[test]
+        test_target = target[test]
+        train_data = data[train]
+        train_target = target[train]
+        datasetinfo = dsl.dataset.datasetInfo
+        if "augmentTrainingData" in datasetinfo:
+            func = datasetinfo["augmentTrainingData"]
+            train_data, train_target = func(train_data, train_target)
+
         model, hist, \
-        ret_callbacks, embedding_model = trainer(o_X=data[test], o_Y=target[test],
-                                                 X=data[train], Y=target[train],
+        ret_callbacks, embedding_model = trainer(o_X=test_data, o_Y=test_target,
+                                                 X=train_data, Y=train_target,
                                                  regression=dsl.isregression,
                                                  shuffle=True,
                                                  batch_size=args.batchsize,
@@ -473,6 +483,8 @@ def iteration(anynominal, args, callbacks, colmap, data,
             acc = np.sum(res) / len(res)
             min_retain_loss = 1.0 - acc
         min_retain_losses.append(min_retain_loss)
+        fold_results[methodstring]["errdistvec"] = errdistvec
+        fold_results[methodstring]["truedistvec"] = truedistvec
     elif methodstring not in non_trainable:
         min_retain_loss = ret_callbacks["gabelelitism"].best
     fold_results[methodstring]["ret_loss"] = min_retain_loss
@@ -480,26 +492,31 @@ def iteration(anynominal, args, callbacks, colmap, data,
     fold_results[methodstring]["timespent"] = timespent
     if printcvresults:
         printCVSummary(dataset, fold_results, methodstring,
-                       n, args, fold_number)
+                       n, args, fold_number, errdistvec, truedistvec)
     # print(f"dataset {dataset} method {methodstring}, "
     #      f"min_retrieve_loss: {min_retain_loss} time spent: {timespent}"
     return methodstring
 
 
-def printSummary(dataset, dataset_result, runlist, n, args):
+def printSummary(dataset, dataset_result, runlist,
+                 n, args):
     for method in runlist:
         ret_results = np.zeros((len(dataset_result.keys()), 1))
         if method not in non_trainable:
             training_results = np.zeros((len(dataset_result.keys()), 1))
+            errdistvecs = []
+            truedistvecs = []
             epochs = np.zeros((len(dataset_result.keys()), 1))
             timespentarr = np.zeros((len(dataset_result.keys()), 1))
         i = 0
         for key in dataset_result:
             ret_results[i] = dataset_result[key][method]["ret_loss"]
-            if  method not in non_trainable:
+            if method not in non_trainable:
                 training_results[i] = dataset_result[key][method]["training_loss"]
                 epochs[i] = dataset_result[key][method]["epochs"]
                 timespentarr[i] = dataset_result[key][method]["timespent"]
+                errdistvecs.append(dataset_result[key][method]["errdistvec"])
+                truedistvecs.append(dataset_result[key][method]["truedistvec"])
             i += 1
 
         total_avg_retain_loss = np.mean(ret_results)
@@ -512,6 +529,8 @@ def printSummary(dataset, dataset_result, runlist, n, args):
             total_std_timespent = np.std(timespentarr)
             total_avg_training_loss = np.mean(training_results)
             total_std_training_loss = np.std(training_results)
+            total_avg_errdistvec = (pd.DataFrame(data=errdistvecs)).mean()
+            total_avg_truedistvec = (pd.DataFrame(data=truedistvecs)).mean()
             print(f"n:{n}/{args.n-1} "
                   f"dataset {dataset} method {method} "
                   f"avg_retrieve_loss: {total_avg_retain_loss} "
@@ -522,6 +541,8 @@ def printSummary(dataset, dataset_result, runlist, n, args):
                   f"retloss/epoch: {total_avg_retain_loss/total_avg_epochs} "
                   f"avg_timespent: {total_avg_timespent} (+/- {total_std_timespent}) "
                   )
+            print(f"errdistvec:\n {total_avg_errdistvec}")
+            print(f"truedistvec:\n {total_avg_truedistvec}")
         else:
             print(f"dataset {dataset} method {method} "
                   f"avg_retrieve_loss: {total_avg_retain_loss} "
