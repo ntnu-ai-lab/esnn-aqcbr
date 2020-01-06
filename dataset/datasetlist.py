@@ -1,0 +1,426 @@
+import numpy as np
+
+from dataset.dataset import glass_preprocess, ttt_postprocess, mnist_makedf, mnist_adapt, mnist_getInfo
+from dataset.opsitu.datahelper import balancetraining
+
+datamap = {
+    "soybean-small": {
+        "dataUrl": "https://archive.ics.uci.edu/ml/machine-learning-databases/soybean/soybean-small.data",
+        "descriptionUrl": "https://archive.ics.uci.edu/ml/datasets/soybean+(small)",
+        "headers": None,
+        "sep": ",",
+        "num_classes": 1,
+        "cols": [{"name": "date", "type": "nominal", "class": False},
+                 {"name": "plant-stand", "type": "nominal", "class": False},
+                 {"name": "precip", "type": "nominal", "class": False},
+                 {"name": "temp", "type": "nominal", "class": False},
+                 {"name": "hail", "type": "nominal", "class": False},
+                 {"name": "crop-hist", "type": "nominal", "class": False},
+                 {"name": "area-damaged", "type": "nominal", "class": False},
+                 {"name": "severity", "type": "nominal", "class": False},
+                 {"name": "seed-tmt", "type": "nominal", "class": False},
+                 {"name": "germination", "type": "nominal", "class": False},
+                 {"name": "plant-growth", "type": "nominal", "class": False},
+                 {"name": "leaves", "type": "nominal", "class": False},
+                 {"name": "leafspots-halo", "type": "nominal", "class": False},
+                 {"name": "leafspots-marg", "type": "nominal", "class": False},
+                 {"name": "leafspot-size", "type": "nominal", "class": False},
+                 {"name": "leaf-shread", "type": "nominal", "class": False},
+                 {"name": "leaf-malf", "type": "nominal", "class": False},
+                 {"name": "leaf-mild", "type": "nominal", "class": False},
+                 {"name": "stem", "type": "nominal", "class": False},
+                 {"name": "lodging", "type": "nominal", "class": False},
+                 {"name": "stem-cankers", "type": "nominal", "class": False},
+                 {"name": "canker-lesion", "type": "nominal", "class": False},
+                 {"name": "fruiting-bodies", "type": "nominal", "class": False},
+                 {"name": "external decay", "type": "nominal", "class": False},
+                 {"name": "mycelium", "type": "nominal", "class": False},
+                 {"name": "int-discolor", "type": "nominal", "class": False},
+                 {"name": "sclerotia", "type": "nominal", "class": False},
+                 {"name": "fruit-pods", "type": "nominal", "class": False},
+                 {"name": "fruit spots", "type": "nominal", "class": False},
+                 {"name": "seed", "type": "nominal", "class": False},
+                 {"name": "mold-growth", "type": "nominal", "class": False},
+                 {"name": "seed-discolor", "type": "nominal", "class": False},
+                 {"name": "seed-size", "type": "nominal", "class": False},
+                 {"name": "shriveling", "type": "nominal", "class": False},
+                 {"name": "roots", "type": "nominal", "class": False},
+                 {"name": "class", "type": "nominal", "class": True}
+        ]
+
+    },
+    "opsitu": {
+        "dataUrl": "http://www.idi.ntnu.no/~bjornmm/opsitu.csv",
+        "headers": 0, #first line is header
+        "augmentTrainingData": balancetraining,
+        "sep": ",",
+        "num_classes": 1,
+        "cols": [{"name": "index", "type": "skip", "class": False},
+                 {"name": "sitename", "type": "skip", "class": False},
+                 {"name": "date", "type": "skip", "class": False},
+                 # {"name": "skip", "type": "skip", "class": False},
+                 {"name": "wind_speed", "type": np.float32, "class": False},
+                 {"name": "wind_from_direction", "type": np.float32, "class": False},
+                 {"name": "wind_effect", "type": np.float32, "class": False},
+                 {"name": "weatherhindrance", "type": "nominal", "class": True},
+                 {"name": "sdistance", "type": np.float32, "class": False}
+        ]
+    },
+    "opsitubal": {
+        "dataUrl": "http://www.idi.ntnu.no/~bjornmm/opsitu-bal.csv",
+        "headers": 0,  # first line is header
+        "sep": ",",
+        "num_classes": 1,
+        "cols": [{"name": "index", "type": "skip", "class": False},
+                 {"name": "sitename", "type": "skip", "class": False},
+                 {"name": "date", "type": "skip", "class": False},
+                 # {"name": "skip", "type": "skip", "class": False},
+                 {"name": "wind_speed", "type": np.float32, "class": False},
+                 {"name": "wind_from_direction", "type": np.float32, "class": False},
+                 {"name": "wind_effect", "type": np.float32, "class": False},
+                 {"name": "weatherhindrance", "type": "nominal", "class": True},
+                 {"name": "sdistance", "type": np.float32, "class": False}
+                 ]
+    },
+    "bal": {
+        "dataUrl": "http://archive.ics.uci.edu/ml/machine-learning-databases/balance-scale/balance-scale.data",
+        "headers": None,
+        "sep": ",",
+        "num_classes": 1,
+        "cols": [{"name": "class", "type": "nominal", "class": True},
+                 {"name": "left_weight", "type": "nominal", "class": False},
+                 {"name": "left_distance", "type": "nominal", "class": False},
+                 {"name": "right_weight", "type": "nominal", "class": False},
+                 {"name": "right_distance", "type": "nominal", "class": False}
+        ]
+    },
+    "car": {
+        "dataUrl": "https://archive.ics.uci.edu/ml/machine-learning-databases/car/car.data",
+        "headers": None,
+        "sep": ",",
+        "num_classes": 1,
+        "cols": [{"name": "bying", "type": "nominal", "class": False},
+                 {"name": "maint", "type": "nominal", "class": False},
+                 {"name": "doors", "type": "nominal", "class": False},
+                 {"name": "persons", "type": "nominal", "class": False},
+                 {"name": "lug_boot", "type": "nominal", "class": False},
+                 {"name": "safety", "type": "nominal", "class": False},
+                 {"name": "class", "type": "nominal", "class": True}
+        ]
+    },
+    "cmc": {
+        "dataUrl": "https://archive.ics.uci.edu/ml/machine-learning-databases/cmc/cmc.data",
+        "headers": None,
+        "sep": ",",
+        "num_classes": 1,
+        "cols": [{"name": "wife_age", "type": np.int32, "class": False},
+                 {"name": "wife_education", "type": "nominal", "class": False},
+                 {"name": "husbands_education", "type": "nominal", "class": False},
+                 {"name": "number_of_children_born", "type": "nominal", "class": False},
+                 {"name": "wife_religion", "type": "nominal", "class": False},
+                 {"name": "wife_working", "type": "nominal", "class": False},
+                 {"name": "husbands_occupation", "type": "nominal", "class": False},
+                 {"name": "standard_of_living", "type": "nominal", "class": False},
+                 {"name": "media_exposure", "type": "nominal", "class": False},
+                 {"name": "contraceptive", "type": "nominal", "class": True}
+        ]
+    },
+    "eco": {
+        "dataUrl": "https://archive.ics.uci.edu/ml/machine-learning-databases/ecoli/ecoli.data",
+        "headers": None,
+        "sep": "\s+",
+        "num_classes": 1,
+        "cols": [{"name": "skip", "type": "skip", "class": False},
+                 {"name": "mcg", "type": np.float32, "class": False},
+                 {"name": "gvh", "type": np.float32, "class": False},
+                 {"name": "lip", "type": np.float32, "class": False},
+                 {"name": "chg", "type": np.float32, "class": False},
+                 {"name": "aac", "type": np.float32, "class": False},
+                 {"name": "a1m1", "type": np.float32, "class": False},
+                 {"name": "a1m2", "type": np.float32, "class": False},
+                 {"name": "localization_site", "type": "nominal", "class": True}
+        ]
+    },
+    "glass": {
+        "dataUrl":"https://archive.ics.uci.edu/ml/machine-learning-databases/glass/glass.data",
+        "sep": ",",
+        "headers": None,
+        "num_classes": 1,
+        "pre_process": glass_preprocess,
+        "cols": [{"name": "skip", "type": "skip", "class": False},
+                 {"name": "RI", "type": np.float32, "class": False},
+                 {"name": "Na", "type": np.float32, "class": False},
+                 {"name": "Mg", "type": np.float32, "class": False},
+                 {"name": "Al", "type": np.float32, "class": False},
+                 {"name": "Si", "type": np.float32, "class": False},
+                 {"name": "K", "type": np.float32, "class": False},
+                 {"name": "Ca", "type": np.float32, "class": False},
+                 {"name": "Ba", "type": np.float32, "class": False},
+                 {"name": "Fe", "type": np.float32, "class": False},
+                 {"name": "type_of_glass", "type": "nominal", "class": True}
+        ]
+    },
+    "hay": {
+        "dataUrl": "https://archive.ics.uci.edu/ml/machine-learning-databases/hayes-roth/hayes-roth.data",
+        "headers": None,
+        "sep": ",",
+        "num_classes": 1,
+        "cols": [{"name": "name", "type": "skip", "class": False},
+                 {"name": "hobby", "type": "nominal", "class": False},
+                 {"name": "age", "type": "nominal", "class": False},
+                 {"name": "educational_level", "type": "nominal", "class": False},
+                 {"name": "marital_status", "type": "nominal", "class": False},
+                 {"name": "class", "type": "nominal", "class": True}
+        ]
+    },
+    "heart": {
+        "dataUrl": "http://archive.ics.uci.edu/ml/machine-learning-databases/statlog/heart/heart.dat",
+        "headers": None,
+        "sep": "\s+",
+        "num_classes": 1,
+        "cols": [{"name": "age", "type": np.float32, "class": False},
+                 {"name": "sex", "type": "nominal", "class": False},
+                 {"name": "chest_pain_type", "type": "nominal", "class": False},
+                 {"name": "resting_blood_pressure", "type": np.float32, "class": False},
+                 {"name": "serum_cholestroal", "type": np.float32, "class": False},
+                 {"name": "fasting_blood_sugar", "type": "nominal", "class": False},
+                 {"name": "resting_ecg", "type": "nominal", "class": False},
+                 {"name": "max_hr", "type": np.float32, "class": False},
+                 {"name": "exercise_agina", "type": "nominal", "class": False},
+                 {"name": "oldpeak", "type": np.float32, "class": False},
+                 {"name": "slope", "type": "nominal", "class": False},
+                 {"name": "numb_blood_vessels", "type": np.float32, "class": False},
+                 {"name": "thal", "type": "nominal", "class": False},
+                 {"name": "heartdefect", "type": "nominal", "class": True}
+        ]
+    },
+    "iris": {
+        "dataUrl":"https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data",
+        "backupUrl":"./dataset/iris.csv",
+        "sep": ",",
+        "headers": None,
+        "num_classes": 1,
+        "cols": [
+            {"name": "sepal_length", "type": np.float32, "class": False},
+            {"name": "sepal_width", "type": np.float32, "class": False},
+            {"name": "petal_length", "type": np.float32, "class": False},
+            {"name": "petal_width", "type": np.float32, "class": False},
+            {"name": "type_of_iris", "type": "nominal", "class": True}
+        ]
+    },
+    "mam": {
+        "dataUrl":"https://archive.ics.uci.edu/ml/machine-learning-databases/mammographic-masses/mammographic_masses.data",
+        "sep": ",",
+        "headers": None,
+        "na_values": "?",
+        "num_classes": 1,
+        "dropcols": ["BI-RADS"],
+        "dropna": True,
+        "cols": [
+            {"name": "BI-RADS", "type": "nominal","dtype":np.int32, "class": False},
+            {"name": "Age", "type": np.float32, "class": False},
+            {"name": "Shape", "type": "nominal", "class": False},
+            {"name": "Margin", "type": "nominal", "class": False},
+            {"name": "Density", "type": "nominal", "class": False},
+            {"name": "Severity", "type": "nominal", "class": True}
+        ]
+    },
+    "mon": {
+        "dataUrl":"https://archive.ics.uci.edu/ml/machine-learning-databases/monks-problems/monks-2.train",
+        "sep": "\s+",
+        "headers": None,
+        "num_classes": 1,
+        "cols": [
+            {"name": "class", "type": "nominal", "class": True},
+            {"name": "a1", "type": np.int32, "class": False},
+            {"name": "a2", "type": np.int32, "class": False},
+            {"name": "a3", "type": np.int32, "class": False},
+            {"name": "a4", "type": np.int32, "class": False},
+            {"name": "a5", "type": np.int32, "class": False},
+            {"name": "a6", "type": np.int32, "class": False},
+            {"name": "skip", "type": "skip", "class": False}
+        ]
+    },
+    "pim": {
+        "dataUrl":"https://raw.githubusercontent.com/LamaHamadeh/Pima-Indians-Diabetes-DataSet-UCI/master/pima_indians_diabetes.txt",
+        "descriptionUrl": "https://github.com/LamaHamadeh/Pima-Indians-Diabetes-DataSet-UCI",
+        "headers": 0,
+        "sep": ",",
+        "num_classes": 2,
+        "cols": [
+            {"name": "No_pregnant", "type": np.float32, "class": False},
+            {"name": "Plasma_glucose", "type": np.float32, "class": False},
+            {"name": "Blood_pres", "type": np.float32, "class": False},
+            {"name": "Skin_thick", "type": np.float32, "class": False},
+            {"name": "Serum_insu", "type": np.float32, "class": False},
+            {"name": "BMI", "type": np.int32, "class": False},
+            {"name": "Diabetes_func", "type": np.float32, "class": False},
+            {"name": "Age", "type": np.float32, "class": False},
+            {"name": "Class", "type": "nominal", "class": True}
+        ]
+    },
+    "energy": {
+        "dataUrl":"https://archive.ics.uci.edu/ml/machine-learning-databases/00242/ENB2012_data.xlsx",
+        "descriptionUrl": "https://archive.ics.uci.edu/ml/datasets/Energy+efficiency#",
+        "headers": 0,
+        "sheet_name": [0],
+        "num_classes": 2,
+        "cols": [
+            {"name": "X1", "type": np.float32, "class": False},
+            {"name": "X2", "type": np.float32, "class": False},
+            {"name": "X3", "type": np.float32, "class": False},
+            {"name": "X4", "type": np.float32, "class": False},
+            {"name": "X5", "type": np.float32, "class": False},
+            {"name": "X6", "type": np.int32, "class": False},
+            {"name": "X7", "type": np.float32, "class": False},
+            {"name": "X8", "type": np.float32, "class": False},
+            {"name": "Y1", "type": np.float32, "class": True},
+            {"name": "Y2", "type": np.float32, "class": True}
+        ]
+    },
+    "ttt":{
+        "dataUrl": "https://archive.ics.uci.edu/ml/machine-learning-databases/tic-tac-toe/tic-tac-toe.data",
+        "headers": None,
+        "sep": ",",
+        "num_classes": 1,
+        "post_process": ttt_postprocess,
+        "cols": [{"name": "top_left", "type": "nominal", "class": False},
+                 {"name": "top_middle", "type": "nominal", "class": False},
+                 {"name": "top_right", "type": "nominal", "class": False},
+                 {"name": "middle_left", "type": "nominal", "class": False},
+                 {"name": "middle_middle", "type": "nominal", "class": False},
+                 {"name": "middle_right", "type": "nominal", "class": False},
+                 {"name": "bottom_left", "type": "nominal", "class": False},
+                 {"name": "bottom_middle", "type": "nominal", "class": False},
+                 {"name": "bottom_right", "type": "nominal", "class": False},
+                 {"name": "class", "type": "nominal", "class": True}
+        ]
+    },
+    "use": {
+        "dataUrl":"https://archive.ics.uci.edu/ml/machine-learning-databases/00257/Data_User_Modeling_Dataset_Hamdi%20Tolga%20KAHRAMAN.xls",
+        "headers": 0,
+        "sheet_name": [1,2],#["Training_Data","Test_Data"],
+        "usecols": "A:F",
+        "num_classes": 1,
+        "cols": [
+            {"name": "STG", "type": np.int32, "class": False},
+            {"name": "SCG", "type": np.int32, "class": False},
+            {"name": "STR", "type": np.int32, "class": False},
+            {"name": "LPR", "type": np.int32, "class": False},
+            {"name": "PEG", "type": np.int32, "class": False},
+            {"name": "UNS", "type": "nominal", "class": True}
+        ]
+    },
+    "who": {
+        "dataUrl":"https://archive.ics.uci.edu/ml/machine-learning-databases/00292/Wholesale%20customers%20data.csv",
+        "sep": ",",
+        "headers": 0,
+        "num_classes": 2,
+        "cols": [
+            {"name": "Channel", "type": "nominal", "class": True},
+            {"name": "Region", "type": "nominal", "class": True},
+            {"name": "Fresh", "type": np.int32, "class": False},
+            {"name": "Milk", "type": np.int32, "class": False},
+            {"name": "Grocery", "type": np.int32, "class": False},
+            {"name": "Frozen", "type": np.int32, "class": False},
+            {"name": "Detergents_Paper", "type": np.int32, "class": False},
+            {"name": "Delicatessen", "type": np.int32, "class": False}
+        ]#It seems the target variable is "region" or "channel"
+    },
+    "bupa": {
+        "dataUrl":"https://archive.ics.uci.edu/ml/machine-learning-databases/liver-disorders/bupa.data",
+        "descriptionUrl":"https://archive.ics.uci.edu/ml/machine-learning-databases/liver-disorders/bupa.names",
+        "sep": ",",
+        "headers": None,
+        "num_classes": 1,
+        "cols": [
+            {"name": "mcv", "type": np.int32, "class": False},
+            {"name": "alkphos", "type": np.int32, "class": False},
+            {"name": "sgpt", "type": np.int32, "class": False},
+            {"name": "sgot", "type": np.int32, "class": False},
+            {"name": "gammagt", "type": np.int32, "class": False},
+            {"name": "drinks", "type": np.float32, "class": False},
+            {"name": "selector", "type": "nominal", "dtype": "str", "class": True}
+        ]
+    },
+    "housing": {
+        "dataUrl":"https://archive.ics.uci.edu/ml/machine-learning-databases/housing/housing.data",
+        "descriptionUrl":"https://archive.ics.uci.edu/ml/machine-learning-databases/housing/housing.names",
+        "sep": "\s+",
+        "headers": None,
+        "num_classes": 1,
+        "cols": [
+            {"name": "CRIM", "type": np.float32, "class": False},
+            {"name": "ZN", "type": np.float32, "class": False},
+            {"name": "INDUS", "type": np.float32, "class": False},
+            # this is nominal but only contains 0 or 1
+            {"name": "CHAS", "type": np.int32, "class": False},
+            {"name": "NOX", "type": np.float32, "class": False},
+            {"name": "RM", "type": np.float32, "class": False},
+            {"name": "AGE", "type": np.float32, "class": False},
+            {"name": "DIS", "type": np.float32, "class": False},
+            {"name": "RAD", "type": np.int32, "class": False},
+            {"name": "TAX", "type": np.float32, "class": False},
+            {"name": "PTRATIO", "type": np.float32, "class": False},
+            {"name": "B", "type": np.float32, "class": False},
+            {"name": "LSTAT", "type": np.float32, "class": False},
+            {"name": "MEDV", "type": np.float32, "class": True}
+        ]
+    },
+    "machine": {
+        "dataUrl":"https://archive.ics.uci.edu/ml/machine-learning-databases/cpu-performance/machine.data",
+        "descriptionUrl": "https://archive.ics.uci.edu/ml/machine-learning-databases/cpu-performance/machine.names",
+        "sep": ",",
+        "headers": None,
+        "num_classes": 1,
+        "cols": [            #skip 3 parameters given the description above
+            {"name": "vendor_name", "type": "skip", "class": False},
+            {"name": "model_name", "type": "skip", "class": False},
+            {"name": "MYCT", "type": np.float32, "class": False},
+            {"name": "MMIN", "type": np.float32, "class": False},
+            {"name": "MMAX", "type": np.float32, "class": False},
+            {"name": "CACH", "type": np.float32, "class": False},
+            {"name": "CHMIN", "type": np.float32, "class": False},
+            {"name": "CHMAX", "type": np.float32, "class": False},
+            {"name": "PRP", "type": np.float32, "class": True},
+            {"name": "ERP", "type": "skip", "class": True}
+            ]
+    },
+    "servo": {
+        "dataUrl": "https://archive.ics.uci.edu/ml/machine-learning-databases/servo/servo.data",
+        "headers": None,
+        "sep": ",",
+        "num_classes": 1,
+        "cols": [{"name": "motor", "type": "nominal", "class": False},
+                 {"name": "screw", "type": "nominal", "class": False},
+                 {"name": "pgain", "type": "nominal", "class": False},
+                 {"name": "vgain", "type": "nominal", "class": False},
+                 {"name": "class", "type": np.float32, "class": True}
+        ]
+    },
+    "yacht": {
+        "dataUrl":"https://archive.ics.uci.edu/ml/machine-learning-databases/00243/yacht_hydrodynamics.data",
+        "sep": "\s+",
+        "headers": None,
+        "num_classes": 1,
+        "cols": [
+            {"name": "lon", "type": np.float32, "class": False},
+            {"name": "primsatic_coeff", "type": np.float32, "class": False},
+            {"name": "length-displacement", "type": np.float32, "class": False},
+            {"name": "beam-draught_ratio", "type": np.float32, "class": False},
+            {"name": "length-beam_ratio", "type": np.float32, "class": False},
+            {"name": "froude_number", "type": np.float32, "class": False},
+            {"name": "residuary_resistance", "type": np.float32, "class": True}
+        ]
+    },
+    # this dataset is not a csv and needs a lot of code to adapt to the same
+    # format as the others.
+    "mnist": {
+        "dataUrl": "https://s3.amazonaws.com/img-datasets/mnist.npz",
+        "headers": None,
+        "makedf": mnist_makedf,
+        "num_classes": 1,
+        "adapt": mnist_adapt,
+        "getInfo": mnist_getInfo
+    }
+}

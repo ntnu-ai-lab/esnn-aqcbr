@@ -31,6 +31,7 @@ class SKLearnDataset():
         self.targetcolnames = targetcolnames
         self.dataset = dataset
         self.isregression = isregression
+        #TODO theese two arguments needs to match (does not with opsitu and bal dataset for now)
         self.df = pd.DataFrame(data=self.datacontent, columns=self.colnames)
 
     #def __getattribute__(self, key):
@@ -74,7 +75,7 @@ class SKLearnDataset():
         self.df = self.df.set_index("id")
 
     def getTrainingData(self, idList):
-        subset = self.df.loc[idList,:]
+        subset = self.df.loc[idList, :]
         values = subset.values
         features = values[:, self.featurecolsfrom:self.featurecolsto+1]
         targets = values[:, self.targetcolsfrom:self.targetcolsto]
@@ -340,7 +341,8 @@ def fromDataSetToSKLearn(dataset, multilabelbin=True, n_splits=None):
         features, targets, colnames = adapt(df, featuremapper, targetmapper,
                                             featurecols, targetcols,
                                             datasetInfo, colmap)
-
+    # need to check if targets are at the end of the columnlist, as the following operation
+    # makes sure they are at the end of the columns in the data matrix
     totaldata = np.append(features, targets, axis=1)
     featurecolsfrom = 0
     featurecolsto = features.shape[1]-1

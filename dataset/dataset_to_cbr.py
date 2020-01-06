@@ -1,13 +1,12 @@
 from mycbrwrapper.rest import getRequest
-from mycbrwrapper.concepts import Concept, Concepts
+from mycbrwrapper.concepts import Concepts
 from dataset.dataset import *
 from dataset.dataset_to_sklearn import fromDataSetToSKLearn
 import json
 
-__name__ = "dataset_to_cbr"
-
 defaulthost = "localhost:8080"
-def getDoubleAttributeParamterJSON(min,max,solution):
+
+def getDoubleAttributeParamterJSON(min, max, solution):
     return """
     {{
     "type": "Double",
@@ -15,7 +14,8 @@ def getDoubleAttributeParamterJSON(min,max,solution):
     "max": "{}",
     "solution": "{}"
     }}
-    """.format(min,max,solution)
+    """.format(min, max, solution)
+
 
 def getStringAttributeParamterJSON(solution):
     return """
@@ -24,42 +24,58 @@ def getStringAttributeParamterJSON(solution):
     "solution": "{}"
     }}
     """.format(solution)
-def getStringAttributeParamterJSON(allowedvalues,solution):
+
+
+def getStringAttributeParamterWithValuesJSON(allowedvalues, solution):
     return """
     {{
     "type": "Symbol",
     "allowedValues": [{}],
     "solution": "{}"
     }}
-    """.format(allowedvalues,solution)
-def getDoubleParameters(imin,imax,solution):
-    return {"attributeJSON":getDoubleAttributeParamterJSON(imin,imax,solution)}
+    """.format(allowedvalues, solution)
 
-def getStringParameters(solution):
-    return {"attributeJSON":getStringAttributeParamterJSON(solution)}
+
+def getDoubleParameters(imin, imax, solution):
+    return {
+        "attributeJSON": getDoubleAttributeParamterJSON(imin, imax, solution)
+    }
+
+
+def getStringParameters(isolution):
+    return {"attributeJSON": getStringAttributeParamterJSON(solution=isolution)}
+
 
 def findColFromValue(colmap, value):
-    for key,dict in colmap.items():
+    for key, dict in colmap.items():
         if "possible_values" in dict and value in dict["possible_values"]:
             return key
     return None
+
+
 def findDatasetInfo(datasetInfo, name):
     for row in datasetInfo["cols"]:
         if row["name"] is name:
             return row
     return None
 
-def fromDatasetToCBR(dataset,sklearndataset,colmap):
+def sendDf(df, c, casebase):
+    jsonstr = df.to_json(orient="records")
+    jsono = json.loads(jsonstr)
+    datadict = {}
+    datadict["cases"] = jsono
+    c.addInstances(datadict, casebase)
+
+def fromDatasetToCBR(dataset, sklearndataset, colmap, host=defaulthost, concepts=None, instances=10):
     #print(dataset.df)
 
     #sklearndataset, colmap = fromDataSetToSKLearn(dataset)
 
     datadf = sklearndataset.getDataFrame()
     sklearncols = list(datadf)
-
-
-    cs = Concepts(defaulthost)
-    c = cs.addConcept(dataset.name)
+    if concepts is None:
+        concepts = Concepts(host)
+    c = concepts.addConcept(dataset.name)
     # create the model in the CBR system
     # for col in dataset.getTypes():
     #     #print("columns \"{}\"".format(dataset.df.columns))
@@ -90,21 +106,22 @@ def fromDatasetToCBR(dataset,sklearndataset,colmap):
     #         c.addAttribute(colname,
     #                        getDoubleParameters(cmin, cmax))
     for col in sklearncols:
-        if col not in colmap: #it has to be a binarized new-column
+        if col not in colmap:  #it has to be a binarized new-column
             #print(f"sending paramstring: {paramstr}")
-            originalColName = findColFromValue(colmap,col)
-            datasetInfoRow = findDatasetInfo(dataset.datasetInfo, originalColName)
+            originalColName = findColFromValue(colmap, col)
+            datasetInfoRow = findDatasetInfo(dataset.datasetInfo,
+                                             originalColName)
             classCol = datasetInfoRow["class"]
             paramstr = getDoubleAttributeParamterJSON(0, 1, classCol)
-            c.addAttribute(col,paramstr)
-        elif colmap[col]["type"] is "number":
-              #cmin = dataset.getMinForCol(col)
-              #cmax = dataset.getMaxForCol(col)
-              datasetInfoRow = findDatasetInfo(dataset.datasetInfo, col)
-              classCol = datasetInfoRow["class"]
-              c.addAttribute(col,
-                             getDoubleAttributeParamterJSON(0, 1.0, classCol))
-        elif col in colmap and colmap[col]["type"] is "nominal":
+            c.addAttribute(col, paramstr)
+        elif colmap[col]["type"] == "number":
+            #cmin = dataset.getMinForCol(col)
+            #cmax = dataset.getMaxForCol(col)
+            datasetInfoRow = findDatasetInfo(dataset.datasetInfo, col)
+            classCol = datasetInfoRow["class"]
+            c.addAttribute(col,
+                           getDoubleAttributeParamterJSON(0, 1.0, classCol))
+        elif col in colmap and colmap[col]["type"] == "nominal":
             cmin = datadf[col].min()
             cmax = datadf[col].max()
             datasetInfoRow = findDatasetInfo(dataset.datasetInfo, col)
@@ -112,20 +129,19 @@ def fromDatasetToCBR(dataset,sklearndataset,colmap):
             paramstr = getDoubleAttributeParamterJSON(cmin, cmax, classCol)
             c.addAttribute(col, paramstr)
 
-
-
     # create the instances that fit into the model
-    prefix = c.name
-    jsonstr = sklearndataset.getDataFrame().to_json(orient="records")
-    jsono = json.loads(jsonstr)
-    counter = 0
-    # for row in jsono:
-    #     counter += 1
-    #     row["caseID"] = f"{prefix}{counter}"
-    datadict = {}
-    # this can later be used to mass add instances
-    datadict["cases"] = jsono
+
     c.addCaseBase("mydefaultCB")
+    df = sklearndataset.getDataFrame()
+    df = df.sample(n=instances)
+    if instances > 20:
+        print("doing piecewise")
+        send = df.head(10)
+        while len(send) != 0:
+            sendDf(df, c, "mydefaultCB")
+            send = df.head(10)
+    else:
+        sendDf(df, c, "mydefaultCB")
     # for case in jsono:
     #     //onlycase = case.copy()
     #     //onlycase.pop("caseID", None)
@@ -134,6 +150,9 @@ def fromDatasetToCBR(dataset,sklearndataset,colmap):
     #
     #     tempdict["case"] = case
     #    c.addInstance(case["caseID"],json.dumps(case),"mydefaultCB")
-    c.addInstances(datadict, "mydefaultCB")
-    return cs, c
+    counter = 0
+    # for row in jsono:
+    #     counter += 1
+    #     row["caseID"] = f"{prefix}{counter}"
 
+    return concepts, c

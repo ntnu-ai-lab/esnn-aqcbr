@@ -374,6 +374,7 @@ def create_tpr_fpr(path):
         fprs.append(n_false_positive / n_diff)
     return tprs, fprs
 
+
 def plotEmbeddingClusters(save_directory, trainedmodel, randommodel,
                           filename, font_scale,
                           allfeatures, alltargets,
@@ -937,3 +938,49 @@ def getCorrespondingMethodValue(row, df, method):
         return df.loc[(df['dataset'] == row['dataset'])
                       & (method == df['method'])
                       & (row["n"] == df["n"])]['method_mean'].iloc[0]
+
+
+from models.eval import _eval_dual_ann
+
+def plotROC(save_directory, trainedmodel, randommodel,
+            filename, font_scale,
+            allfeatures, alltargets, train, test,
+            pdf=True):
+    from models.eval import roc
+    positive_label = [1, 0]
+    modelinput = allfeatures
+    modeltargets = alltargets
+
+    #p = np.random.permutation(len(modelinput))
+    #testing = p[0:int(0.2*len(p))]
+    #training = p[int(0.2*len(p)):]
+
+    train_data = modelinput[train]
+    train_target = modeltargets[train]
+
+    test_data = modelinput[test]
+    test_target = modeltargets[test]
+    #output = trainedmodel.predict(modelinput)
+    #randooutput = trainedmodel.predict(modelinput)
+    errvec, errdistvec, truedistvec, combineddata = \
+        _eval_dual_ann(trainedmodel, test_data, test_target,
+                       train_data, train_target,
+                       batch_size=modelinput.shape[0])
+    labelwidth = modeltargets.shape[1]
+    #all = np.concatenate((allfeatures, output, alltargets))
+    df = roc(combineddata, combineddata.shape[1]-2, label_width=labelwidth,
+             label_indexes=[(combineddata.shape[1]-2)-2*labelwidth,
+                            (combineddata.shape[1]-2)-labelwidth],
+             start=0.01, stop=0.8, delta=0.01)
+    print(df)
+    with sns.plotting_context("poster",font_scale=font_scale, rc={"lines.linewidth": 1}):
+        fig, ax = plt.subplots()
+        sns_plot = sns.lineplot(x="fpr", y="tpr",
+                                data=df, sort=False)
+        fig = sns_plot.get_figure()
+        plt.tight_layout()
+        if pdf is True:
+            fig.savefig(f"{save_directory}/{filename}.pdf",bbox_inches='tight')
+        else:
+            fig.savefig(f"{save_directory}/{filename}.eps",bbox_inches='tight')
+        plt.clf()

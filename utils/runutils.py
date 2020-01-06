@@ -176,9 +176,12 @@ def getParser():
     return parser
 
 
-def getArgs():
+def getArgs(myargs=None):
     parser = getParser()
-    args = parser.parse_args()
+    if myargs is None:
+        args = parser.parse_args()
+    else:
+        args = parser.parse_args(args=myargs)
 
     if not len(sys.argv) > 1:
         print ("not enough arguments")

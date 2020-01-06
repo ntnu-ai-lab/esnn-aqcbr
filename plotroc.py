@@ -3,8 +3,8 @@ import sys
 
 import keras
 
-from utils.plotting import plotEmbeddingClusters
-from utils.runutils import getParser, parseMethod
+from utils.plotting import plotROC
+from utils.runutils import getParser, parseMethod, getArgs
 from dataset.dataset import Dataset
 from models.eval import sillouettescore
 
@@ -86,13 +86,13 @@ def main():
         parser.print_help()
         sys.exit(1)
 
-    parser = getParser()
+    # parser = getParser()
 
     oldargs = None
     with open(f"{args.resultdir}/settings.json") as f:
         oldargv = jsonlib.load(f)
 
-    oldargs = parser.parse_args(args=oldargv)
+    oldargs = getArgs(myargs=oldargv) #parser.parse_args(args=oldargv)
     #fmethods = oldargs.methods.split(",")
     np.random.seed(args.seed)
     oldmethods = {}
@@ -125,26 +125,22 @@ def main():
 
 
 
-        randommodel = keras.models.clone_model(embeddingmodel)
+        randommodel = keras.models.clone_model(model)
         shuffle_weights(randommodel)
-        indexes, modeltargets = plotEmbeddingClusters(save_directory, embeddingmodel,
-                                                      randommodel,
-                                                      filename+method, args.font_scale,
-                                                      features, targets, test, classes,
-                                                      args.maxdatapoints,
-                                                      args.removeoptimizer,
-                                                      oldmethods,
-                                                      args.hue_order.split(","))
-        print(f"did plotting with {len(indexes)} number of indexes")
-        if args.doeval:
-            print("evaluating the clustering performance using a square of the same indexes")
-            #def eval_dual_ann(model, test_data, test_target, train_data,
-            #train_target, batch_size, anynominal=False, colmap=None, gabel=False)
-            evalscore = sillouettescore(model,
-                                        features[indexes],
-                                        modeltargets)
-            print(f"evalscore: {evalscore}")
-        
+        plotROC(save_directory, model,
+                randommodel,
+                filename+method, args.font_scale,
+                features, targets, train, test)
+        # print(f"did plotting with {len(indexes)} number of indexes")
+        # if args.doeval:
+        #     print("evaluating the clustering performance using a square of the same indexes")
+        #     #def eval_dual_ann(model, test_data, test_target, train_data,
+        #     #train_target, batch_size, anynominal=False, colmap=None, gabel=False)
+        #     evalscore = sillouettescore(model,
+        #                                 features[indexes],
+        #                                 modeltargets)
+        #     print(f"evalscore: {evalscore}")
+        #
 
 
 if __name__ == "__main__":

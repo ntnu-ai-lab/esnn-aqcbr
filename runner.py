@@ -60,7 +60,7 @@ def main():
                                        printcv=args.printcv,
                                        doevaluation=args.doevaluation))
         writejson(f"{rootpath}/data.json", nresults)
-    
+
     resdf = pd.DataFrame(nresults)
     resdf.to_csv(f"{rootpath}/results_{args.kfold}kfold_{args.epochs}epochs_{args.onehot}onehot.csv")
 

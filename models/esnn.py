@@ -131,9 +131,11 @@ def make_eSNN_model(X, Y, networklayers, regression=False):
     output1 = inner_output1(t1)
     output2 = inner_output2(t2)
 
+    embeddingmodel = Model(inputs=[input1],
+                           outputs=[t1])
+
     model = Model(inputs=[input1, input2],
                   outputs=[output, output1, output2])
 
-    embeddingmodel = Model(inputs=[input1],
-                           outputs=[t1])
+
     return model, embeddingmodel
