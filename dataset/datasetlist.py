@@ -1,7 +1,94 @@
 import numpy as np
+import pandas as pd
+from sklearn import preprocessing
 
-from dataset.dataset import glass_preprocess, ttt_postprocess, mnist_makedf, mnist_adapt, mnist_getInfo
+from dataset.binarizer import MyLabelBinarizer
 from dataset.opsitu.datahelper import balancetraining
+
+
+def glass_preprocess(df):
+    colname = "type_of_glass"
+    dffff = pd.DataFrame(data={})
+    #df.loc[:,colname] = df.loc[:,colname].apply(pd.to_numeric)
+    down_query_index = df.query(
+        'type_of_glass == "1" or type_of_glass == "2" or type_of_glass == "3" or type_of_glass == "4"'
+    ).index
+    up_query_index = df.query(
+        'type_of_glass == "5" or type_of_glass == "6" or type_of_glass == "7"'
+    ).index
+
+    df.iloc[down_query_index, -1] = "0"
+    df.iloc[up_query_index, -1] = "1"
+    return df
+
+
+def mnist_getInfo(df, datasetInfo):
+    values = df.values
+    features = values[:, :-1]
+    targets = values[:, -1:]
+    target_names = []
+    isregression = False
+    targetcols = [features.shape[1]]
+    featurecols = [i for i in range(0, features.shape[1])]
+
+    return target_names, isregression, featurecols, targetcols
+
+
+def mnist_adapt(df, datasetInfo):
+    values = df.values
+    features = values[:, :-1]
+    # features.shape 70000,784
+    targets = values[:, -1:]
+    mlb = MyLabelBinarizer()
+    targets = mlb.fit_transform(targets)
+    # features.shape 70000,10
+    #targetcols = [i for i in range(features.shape[1],features.shape[1]+targets.shape[1])]
+    targetcols = [
+        i
+        for i in range(features.shape[1], features.shape[1] + targets.shape[1])
+    ]
+    featurecols = [i for i in range(0, features.shape[1])]
+    return features, targets, featurecols.extend(targetcols)
+
+
+def mnist_makedf(url, datasetInfo):
+
+    from keras.utils.data_utils import get_file
+    path = get_file("mnist.npz", origin=url)
+
+    f = np.load(path)
+    #datasetInfo["classwidth"] = f['y_train'].shape[1]
+    x_train, y_train = f['x_train'], f['y_train']
+    x_test, y_test = f['x_test'], f['y_test']
+    f.close()
+    flattentrain = flatten_mnist(x_train)
+    flattentest = flatten_mnist(x_test)
+    all_train = np.concatenate(
+        (flattentrain, y_train.reshape((y_train.shape[0], 1))), axis=1)
+    all_test = np.concatenate((flattentest, y_test.reshape(
+        (y_test.shape[0], 1))),
+                              axis=1)
+    all_data = np.concatenate((all_train, all_test), axis=0)
+
+    feature_values = all_data[:, :-1].astype("float32")
+    feature_values /= 255
+    target_values = all_data[:, -1]
+    target_values = target_values.reshape((target_values.shape[0], 1))
+    all_normalized_data = np.concatenate((feature_values, target_values),
+                                         axis=1)
+    retdf = pd.DataFrame(data=all_normalized_data)
+
+    return retdf
+
+
+def ttt_postprocess(nparr, colmap):
+    """
+    from https://gist.github.com/mmmayo13/b52cc0e48aa10e1c0eac54e9989d36de
+    """
+    #nparr = np.delete(nparr, [0,3,6,9,12,15,18,21,24], axis=1)
+
+    return nparr, colmap
+
 
 datamap = {
     "soybean-small": {
@@ -424,3 +511,24 @@ datamap = {
         "getInfo": mnist_getInfo
     }
 }
+
+
+def flatten_mnist(x):
+    dim = x.shape[1] * x.shape[2]
+    output = np.zeros((x.shape[0], dim))
+    for i in range(0, x.shape[0]):
+        output[i, :] = x[i].flatten()
+    return output
+
+
+def ttt_preprocess(df):
+
+    columns = [
+        "top_left", "top_middle", "top_right", "middle_left", "middle_middle",
+        "middle_right", "bottom_left"
+    ]
+    for col in columns:
+        le = preprocessing.LabelEncoder()
+        le.fit()
+
+    return df

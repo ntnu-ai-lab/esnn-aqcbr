@@ -68,17 +68,21 @@ class CustomModelCheckPoint(keras.callbacks.Callback):
         thisloss = logs.get("loss")
         self.epoch_loss[epoch] = thisloss
         if thisloss < self.bestloss:
+            basefile = self.folder + "/" + self.filepath \
+                + "name-of-model-%d" % epoch
+            h5file = basefile+".h5"
+            jsonfile = basefile+".json"
             self.bestloss = thisloss
             # remove the last model file if it exists..
             if self.lastmodelfile is not "":
                 os.remove(self.lastmodelfile)
             # save the model
-            
+            model_json = self.model.to_json()
+            with open(jsonfile, "w") as json_file:
+                json_file.write(model_json)
             self.model. \
-                save_weights(self.folder + "/" + self.filepath
-                             + "name-of-model-%d.h5" % epoch)
-            self.lastmodelfile = self.folder + \
-                "/" + self.filepath + "name-of-model-%d.h5" % epoch
+                save_weights(h5file)
+            self.lastmodelfile = h5file
 
 
 class RetainCallBack(keras.callbacks.Callback):

@@ -26,16 +26,18 @@ class ConvertDataSetTest(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(ConvertDataSetTest, self).__init__(*args, **kwargs)
 
-    def testconvertopsitu(self):
+    @staticmethod
+    def convert(name):
         c = Concepts(defaulthost)
         # conceptstring = "test_concept_test1"
         #c.addConcept(conceptstring)
-        d = Dataset("opsitu")
+        d = Dataset(name)
         dsl, colmap, stratified_fold_generator = fromDataSetToSKLearn(d, True)
-        features = dsl.getFeatures()
-        targets = dsl.getTargets()
-        c = fromDatasetToCBR(d, dsl, colmap, host=defaulthost, concepts=c, instances=100)
+        concepts, concept = fromDatasetToCBR(d, dsl, colmap,
+                                             host=defaulthost,
+                                             concepts=c, instances=100)
+        # concept = concepts.getConcept(name)
+        return d, dsl, colmap, stratified_fold_generator, concepts, concept
 
-        if len(c) != 0:
-            print("success")
-
+    def testconvertopsitu(self):
+        ConvertDataSetTest.convert("opsitu")

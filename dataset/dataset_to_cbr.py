@@ -139,6 +139,7 @@ def fromDatasetToCBR(dataset, sklearndataset, colmap, host=defaulthost, concepts
         send = df.head(10)
         while len(send) != 0:
             sendDf(df, c, "mydefaultCB")
+            df = df.iloc[len(send):]
             send = df.head(10)
     else:
         sendDf(df, c, "mydefaultCB")

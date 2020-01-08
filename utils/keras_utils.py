@@ -6,6 +6,7 @@ this file contains helper code for setting keras parameters
 import numpy as np
 from tensorflow import keras as keras
 from keras import backend as K
+#from keras import layers.abs()
 import os
 
 import tensorflow as tf

@@ -21,6 +21,7 @@ def esnn(o_X, o_Y, X, Y, datasetname, regression=False,
 
     model, embeddingmodel = make_eSNN_model(X, Y,
                                             networklayers, regression)
+
     #model.summary()
 
     #val_features, val_targets, val_Y1, val_Y2 = makeSmartNData(o_X, o_Y, regression)

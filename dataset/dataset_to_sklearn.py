@@ -16,7 +16,6 @@ __name__ = "dataset_to_sklearn"
 
 
 class SKLearnDataset():
-
     def __init__(self, data, featurecolsfrom, featurecolsto, targetcolsfrom,
                  targetcolsto, colnames, target_names, dataset, isregression,
                  targetcolnames):
@@ -62,7 +61,7 @@ class SKLearnDataset():
         return self.myGetAttribute(key)
 
     def getFeatures(self):
-        return self.datacontent[:, self.featurecolsfrom:self.featurecolsto+1]
+        return self.datacontent[:, self.featurecolsfrom:self.featurecolsto + 1]
 
     def getTargets(self):
         return self.datacontent[:, self.targetcolsfrom:self.targetcolsto]
@@ -77,13 +76,9 @@ class SKLearnDataset():
     def getTrainingData(self, idList):
         subset = self.df.loc[idList, :]
         values = subset.values
-        features = values[:, self.featurecolsfrom:self.featurecolsto+1]
+        features = values[:, self.featurecolsfrom:self.featurecolsto + 1]
         targets = values[:, self.targetcolsfrom:self.targetcolsto]
         return features, targets
-
-
-
-
 
 
 def makeembeddings(categorical_vars, df):
@@ -97,22 +92,32 @@ def makeembeddings(categorical_vars, df):
         embedding_size = int(embedding_size)
         vocab = no_of_unique_cat + 1
         model.add(Embedding(vocab, embedding_size, input_length=1))
-        model.add(Reshape(target_shape=(embedding_size,)))
+        model.add(Reshape(target_shape=(embedding_size, )))
         models.append(model)
+
 
 def makeFakeYield(featurearr, targetarr):
     kfold = StratifiedKFold(n_splits=5)
     stratified_fold_generator = kfold.split(featurearr, targetarr)
     train, test = next(stratified_fold_generator)
-    train  = np.arange(featurearr.shape[0])
+    train = np.arange(featurearr.shape[0])
     yield train, test
 
 
-def getDatasetInfo(dataset, multilabelbin=True,
-                   n_splits=None, df=None, datasetInfo=None,
-                   n_samples=0, n_features=0, colnames=None,
-                   classcols=[], featurecols=[], targetcols=[],
-                   targetcolindexes=[], dropcols=[], colmap={}):
+def getDatasetInfo(dataset,
+                   multilabelbin=True,
+                   n_splits=None,
+                   df=None,
+                   datasetInfo=None,
+                   n_samples=0,
+                   n_features=0,
+                   colnames=None,
+                   classcols=[],
+                   featurecols=[],
+                   targetcols=[],
+                   targetcolindexes=[],
+                   dropcols=[],
+                   colmap={}):
     for col in datasetInfo["cols"]:
         if col["class"] is True:
             classcols.append(col)
@@ -136,12 +141,15 @@ def getDatasetInfo(dataset, multilabelbin=True,
         dropcols.append("Channel")
 
     if dropcols is not None:
-        featurecols.extend([c["name"] for c in datasetInfo["cols"]
-                            if c["type"] is not "skip" and c["class"] is not True
-                            and c["name"] not in dropcols])
+        featurecols.extend([
+            c["name"] for c in datasetInfo["cols"] if c["type"] is not "skip"
+            and c["class"] is not True and c["name"] not in dropcols
+        ])
     else:
-        featurecols.extend([c["name"] for c in datasetInfo["cols"]
-                            if c["type"] is not "skip" and c["class"] is not True])
+        featurecols.extend([
+            c["name"] for c in datasetInfo["cols"]
+            if c["type"] is not "skip" and c["class"] is not True
+        ])
 
     df = dataset.df
 
@@ -155,7 +163,7 @@ def getDatasetInfo(dataset, multilabelbin=True,
 
     # go through all the input features and find
     # out which type of preprocessing they need
-    for i in range(0,len(datasetInfo["cols"])):
+    for i in range(0, len(datasetInfo["cols"])):
         colname = datasetInfo["cols"][i]["name"]
         coltype = datasetInfo["cols"][i]["type"]
         colclass = datasetInfo["cols"][i]["class"]
@@ -179,7 +187,9 @@ def getDatasetInfo(dataset, multilabelbin=True,
             if multilabelbin:
                 possible_values = []
                 possible_values.extend(df[colname].unique())
-                datadict["possible_values"] = [colname+"_"+v for v in possible_values]
+                datadict["possible_values"] = [
+                    colname + "_" + v for v in possible_values
+                ]
             else:
                 datadict["possible_values"] = [colname]
             datadict["type"] = "nominal"
@@ -227,17 +237,20 @@ def getDatasetInfo(dataset, multilabelbin=True,
         datadict = {}
         targetcoltype = datasetInfo["cols"][targetcolindex]["type"]
         if targetcoltype is np.int32 or targetcoltype is np.float32:
-            df.loc[:,(targetcolname)] = df.loc[:,(targetcolname)].apply(pd.to_numeric)
+            df.loc[:, (targetcolname)] = df.loc[:, (targetcolname)].apply(
+                pd.to_numeric)
             targetmapperlist.append(([targetcolname], MinMaxScaler()))
             datadict["type"] = "number"
-        elif targetcoltype is "nominal" or targetcoltype is "ordinal":
+        elif targetcoltype == "nominal" or targetcoltype == "ordinal":
 
             datadict["type"] = "nominal"
             if multilabelbin:
                 targetmapperlist.append((targetcolname, MyLabelBinarizer()))
                 values = df[targetcolname].unique().tolist()
                 target_names.extend(values)
-                datadict["possible_values"] = [targetcolname + "_" + pv for pv in values.copy()]
+                datadict["possible_values"] = [
+                    targetcolname + "_" + pv for pv in values.copy()
+                ]
             else:
                 targetmapperlist.append((targetcolname, LabelEncoder()))
                 datadict["possible_values"] = [targetcolname]
@@ -249,12 +262,13 @@ def getDatasetInfo(dataset, multilabelbin=True,
         isregression, featurecols, targetcols, colmap
 
 
-def adapt(df, featuremapper, targetmapper,
-          featurecols, targetcols, datadict, colmap):
+def adapt(df, featuremapper, targetmapper, featurecols, targetcols, datadict,
+          colmap):
 
     # do the mapping through df-scikit-mapper
-    mappedfeaturedf = featuremapper.fit_transform(df.loc[:, featurecols].copy())
-    mappedtargetdf = targetmapper.fit_transform(df.loc[:,targetcols].copy())
+    mappedfeaturedf = featuremapper.fit_transform(
+        df.loc[:, featurecols].copy())
+    mappedtargetdf = targetmapper.fit_transform(df.loc[:, targetcols].copy())
 
     # get the mapped values as numpy arrays
     targets = mappedtargetdf.values
@@ -263,24 +277,30 @@ def adapt(df, featuremapper, targetmapper,
         features, colmap = datadict["post_process"](features, colmap)
 
     colnames = []
+    targetcolnames = []
     for thiscolname, coldict in colmap.items():
         if "possible_values" in coldict:
-            colnames.extend(coldict["possible_values"])
+            if thiscolname in targetcols:
+                targetcolnames.extend(coldict["possible_values"])
+            else:
+                colnames.extend(coldict["possible_values"])
         else:
-            colnames.append(thiscolname)
+            if thiscolname in targetcols:
+                targetcolnames.append(thiscolname)
+            else:
+                colnames.append(thiscolname)
 
-    return features, targets, colnames
+    return features, targets, colnames, targetcolnames
 
 
 def fromDataSetToSKLearn(dataset, multilabelbin=True, n_splits=None):
     df = dataset.df
     datasetInfo = dataset.datasetInfo
     n_samples = df.shape[0]
-    n_features = df.shape[1]-datasetInfo["num_classes"]
+    n_features = df.shape[1] - datasetInfo["num_classes"]
     colnames = list(df)
     classcols = []
     #find all classes
-
 
     targetcols = []
     featurecols = []
@@ -291,7 +311,6 @@ def fromDataSetToSKLearn(dataset, multilabelbin=True, n_splits=None):
     target_names = None
     isregression = False
     colmap = {}
-
 
     # get the info needed for converting the data to proper format
     if "getInfo" in datasetInfo:
@@ -329,8 +348,8 @@ def fromDataSetToSKLearn(dataset, multilabelbin=True, n_splits=None):
         stratified_fold_generator = kfold.split(df.loc[:, featurecols].values,
                                                 df.loc[:, targetcols].values)
     else:
-        stratified_fold_generator = makeFakeYield(df.loc[:, featurecols].values,
-                                                  df.loc[:, targetcols].values)
+        stratified_fold_generator = makeFakeYield(
+            df.loc[:, featurecols].values, df.loc[:, targetcols].values)
 
     # convert the data to proper format
     if "adapt" in datasetInfo:
@@ -338,19 +357,20 @@ def fromDataSetToSKLearn(dataset, multilabelbin=True, n_splits=None):
         features, targets, colnames = adapt_dyn(df, datasetInfo)
         #colnames = featurecols.copy().extend(targetcols.copy())
     else:
-        features, targets, colnames = adapt(df, featuremapper, targetmapper,
-                                            featurecols, targetcols,
-                                            datasetInfo, colmap)
+        features, targets, colnames, targetcolnames = adapt(df, featuremapper, targetmapper,
+                                                            featurecols, targetcols,
+                                                            datasetInfo, colmap)
     # need to check if targets are at the end of the columnlist, as the following operation
     # makes sure they are at the end of the columns in the data matrix
+    colnames.extend(targetcolnames)
     totaldata = np.append(features, targets, axis=1)
     featurecolsfrom = 0
-    featurecolsto = features.shape[1]-1
+    featurecolsto = features.shape[1] - 1
     targetcolsfrom = features.shape[1]
-    targetcolsto = features.shape[1]+targets.shape[1]
+    targetcolsto = features.shape[1] + targets.shape[1]
     return SKLearnDataset(totaldata, featurecolsfrom, featurecolsto,
                           targetcolsfrom, targetcolsto,
                           colnames, target_names, dataset,
                           isregression, targetcols), colmap, \
                           stratified_fold_generator
-            #Bunch(data=features,target=targets,target_names=target_names,feature_names=feature_names)
+    #Bunch(data=features,target=targets,target_names=target_names,feature_names=feature_names)
