@@ -4,7 +4,7 @@ from utils.keras_utils import set_keras_growth
 from utils.runutils import runalldatasetsMPI, getArgs
 from utils.storage_utils import createdir, writejson
 from datetime import datetime
-from keras.wrappers.scikit_learn import KerasClassifier
+from tensorflow.keras.wrappers.scikit_learn import KerasClassifier
 import sys
 import numpy as np
 import pandas as pd

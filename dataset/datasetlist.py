@@ -53,7 +53,7 @@ def mnist_adapt(df, datasetInfo):
 
 def mnist_makedf(url, datasetInfo):
 
-    from keras.utils.data_utils import get_file
+    from tensorflow.keras.utils.data_utils import get_file
     path = get_file("mnist.npz", origin=url)
 
     f = np.load(path)

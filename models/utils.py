@@ -1,13 +1,13 @@
-import keras.backend as K
+import tensorflow.keras.backend as K
 
 def eucl_dist_output_shape(shapes):
     shape1, shape2 = shapes
     return (shape1[0], 1)
 
-from keras.models import Sequential, Model
-from keras.layers import Dense, Input
-from keras import backend as K
-from keras.utils import multi_gpu_model
+from tensorflow.keras.models import Sequential, Model
+from tensorflow.keras.layers import Dense, Input
+from tensorflow.keras import backend as K
+from tensorflow.keras.utils import multi_gpu_model
 
 from models.rprop import RProp
 

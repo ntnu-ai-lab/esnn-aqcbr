@@ -1,7 +1,7 @@
-from keras.models import Sequential, Model
-from keras.layers import Dense, Input
-from keras import backend as K
-from keras.utils import multi_gpu_model
+from tensorflow.keras.models import Sequential, Model
+from tensorflow.keras.layers import Dense, Input
+from tensorflow.keras import backend as K
+from tensorflow.keras.utils import multi_gpu_model
 
 from models.rprop import RProp
 

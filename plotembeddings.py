@@ -1,7 +1,7 @@
 import argparse
 import sys
 
-import keras
+import tensorflow.keras
 
 from utils.plotting import plotEmbeddingClusters
 from utils.runutils import getParser, parseMethod

@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
 import math
-import keras.models
+import tensorflow as tf
+import tensorflow.keras.models
 import random
 
 import scipy.spatial.distance as scdist

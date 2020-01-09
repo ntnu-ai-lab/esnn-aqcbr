@@ -1,7 +1,7 @@
-import keras
+import tensorflow.keras
 import numpy as np
 import os
-from keras import backend as K
+from tensorflow.keras import backend as K
 
 
 sim_nn_results ={ 
@@ -48,7 +48,7 @@ sim_nn_results ={
 # from https://stackoverflow.com/questions/50127527/how-to-save-training-history-on-every-epoch-in-keras
 
 
-class CustomModelCheckPoint(keras.callbacks.Callback):
+class CustomModelCheckPoint(tensorflow.keras.callbacks.Callback):
     def __init__(self, filepath, rootdir, **kargs):
         super(CustomModelCheckPoint, self).__init__(**kargs)
         self.epoch_accuracy = {}  # loss at given epoch
@@ -66,6 +66,9 @@ class CustomModelCheckPoint(keras.callbacks.Callback):
         # things done on end of the epoch
         self.epoch_accuracy[epoch] = logs.get("acc")
         thisloss = logs.get("loss")
+
+        if thisloss is None:
+            return
         self.epoch_loss[epoch] = thisloss
         if thisloss < self.bestloss:
             basefile = self.folder + "/" + self.filepath \
@@ -85,7 +88,7 @@ class CustomModelCheckPoint(keras.callbacks.Callback):
             self.lastmodelfile = h5file
 
 
-class RetainCallBack(keras.callbacks.Callback):
+class RetainCallBack(tensorflow.keras.callbacks.Callback):
     def __init__(self, validation_data, validation_target,
                  training_data, training_target, batch_size,
                  eval_func, dataset, filepath,
@@ -137,10 +140,10 @@ class RetainCallBack(keras.callbacks.Callback):
     def on_batch_end(self, batch, logs={}):
         return
 
-from keras import backend as K
+from tensorflow.keras import backend as K
 import warnings
 
-class Overfitting_callback(keras.callbacks.Callback):
+class Overfitting_callback(tensorflow.keras.callbacks.Callback):
     """Stop training when model overfits.
         # Arguments
             monitor: quantities to be monitored(list of at least two elements).
@@ -247,7 +250,7 @@ class Overfitting_callback(keras.callbacks.Callback):
         if self.stopped_epoch > 0 and self.verbose > 0:
             print('Epoch %05d: Model overfit. Training stopped.' % (self.stopped_epoch + 1))
 
-class MyEarlyStop(keras.callbacks.EarlyStopping):
+class MyEarlyStop(tensorflow.keras.callbacks.EarlyStopping):
     def __init__(self,validation_data, validation_target,
                  training_data, training_target, batch_size,
                  eval_func, dataset,filepath,
@@ -275,7 +278,7 @@ class MyEarlyStop(keras.callbacks.EarlyStopping):
         super(MyEarlyStop,self).on_train_end(logs)
 
 
-class MyModelCheckpoint(keras.callbacks.ModelCheckpoint):
+class MyModelCheckpoint(tensorflow.keras.callbacks.ModelCheckpoint):
     def __init__(self,validation_data, validation_target,
                  training_data, training_target, batch_size,
                  eval_func, dataset,filepath,
@@ -302,7 +305,7 @@ class MyModelCheckpoint(keras.callbacks.ModelCheckpoint):
     def on_train_end(self, logs=None):
         super(MyModelCheckpoint,self).on_train_end(logs)
 
-class MyTensorBoard(keras.callbacks.TensorBoard):
+class MyTensorBoard(tensorflow.keras.callbacks.TensorBoard):
     def __init__(self,validation_data, validation_target,
                  training_data, training_target, batch_size,
                  eval_func, dataset,filepath,
@@ -329,7 +332,7 @@ class MyTensorBoard(keras.callbacks.TensorBoard):
         super(MyTensorBoard,self).on_train_end(logs)
 
 
-class GabelStop(keras.callbacks.Callback):
+class GabelStop(tensorflow.keras.callbacks.Callback):
     """Stop training when model exceeds gabel results
         # Arguments
             monitor: quantities to be monitored(list of at least two elements).
@@ -394,7 +397,7 @@ class GabelStop(keras.callbacks.Callback):
             print('Epoch %05d: Gabel reached. Training stopped at.' % (self.stopped_epoch + 1))
             print(f"Got retain loss {self.last_retain_loss} vs gabel {sim_nn_results[self.dataset]}")
 
-class GabelOverfit(keras.callbacks.Callback):
+class GabelOverfit(tensorflow.keras.callbacks.Callback):
 
     def __init__(self, validation_data, validation_target,
                  training_data, training_target, batch_size,
@@ -452,7 +455,7 @@ class GabelOverfit(keras.callbacks.Callback):
             print('Epoch %05d: Gabel reached. Training stopped at.' % (self.stopped_epoch + 1))
             print(f"Got retain loss {self.last_retain_loss} vs gabel {sim_nn_results[self.dataset]}")
 
-class GabelElitism(keras.callbacks.Callback):
+class GabelElitism(tensorflow.keras.callbacks.Callback):
 
     def __init__(self, validation_data, validation_target,
                  training_data, training_target, batch_size,

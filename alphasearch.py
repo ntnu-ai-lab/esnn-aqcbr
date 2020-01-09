@@ -4,7 +4,7 @@ from utils.keras_utils import set_keras_growth
 from utils.storage_utils import createdir
 from utils.plotting import  plotNResults
 from datetime import datetime
-from keras.wrappers.scikit_learn import KerasClassifier
+from tensorflow.keras.wrappers.scikit_learn import KerasClassifier
 from utils.runutils import runalldatasets,getArgs
 import sys
 import numpy as np

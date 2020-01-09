@@ -1,7 +1,6 @@
 import time
 import numpy as np
-from keras.optimizers import Adam, RMSprop
-
+from tensorflow.keras.optimizers import Adam, RMSprop
 from dataset.dataset import Dataset
 from models.type2 import makeGabelArch
 from models.type4 import makeDualArch, makeEndToEndDualArch, makeEndToEndDualArchShared, dees_resnet
@@ -10,7 +9,7 @@ from models.esnn import esnn, make_eSNN_model
 from models.eval import eval_normal_ann_l2, eval_dual_ann, \
     eval_gabel_ann, eval_chopra_ann
 from dataset.dataset_to_sklearn import fromDataSetToSKLearn
-from models.rprop import RProp
+from models.rprop import RProp2
 from models.type1 import sim_def_lin, sim_def_nonlin
 from dataset.makeTrainingData import makeDualSharedArchData,\
     makeGabelTrainingData, makeNData, makeSmartNData, makeSemiBig
@@ -56,7 +55,7 @@ rundict = {
 
 non_trainable = ["t1i1", "t2i1"]
 optimizer_dict = {
-    "rprop": {"constructor": RProp, "batch_size": "full"},
+    "rprop": {"constructor": RProp2, "batch_size": "full"},
     "adam": {"constructor": Adam, "batch_size":None},
     "rmsprop": {"constructor": RMSprop, "batch_size":None}
 }

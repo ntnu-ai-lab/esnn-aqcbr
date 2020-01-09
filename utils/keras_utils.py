@@ -5,12 +5,12 @@ this file contains helper code for setting keras parameters
 
 import numpy as np
 from tensorflow import keras as keras
-from keras import backend as K
-#from keras import layers.abs()
+from tensorflow.keras import backend as K
+#from tensorflow.keras import layers.abs()
 import os
 
 import tensorflow as tf
-#import keras.backend.tensorflow_backend as KTF
+#import tensorflow.keras.backend.tensorflow_backend as KTF
 import math
 
 def get_model_memory_usage(batch_size, model):

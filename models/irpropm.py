@@ -1,6 +1,6 @@
 
-from keras.optimizers import Optimizer
-from keras import backend as K
+from tensorflow.keras.optimizers import Optimizer
+from tensorflow.keras import backend as K
 import numpy as np
 #import theano
 import tensorflow as tf

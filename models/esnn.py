@@ -1,7 +1,7 @@
 from dataset.dataset_to_sklearn import *
 from models.eval import eval_dual_ann
-from keras.layers import Dense, Input, Lambda
-from keras.models import Model
+from tensorflow.keras.layers import Dense, Input, Lambda
+from tensorflow.keras.models import Model
 
 from models.utils import normalizeBatchSize
 from utils.keras_utils import keras_sqrt_diff
@@ -103,7 +103,7 @@ def make_eSNN_model(X, Y, networklayers, regression=False):
         t1 = dl1(t1)
         t2 = dl1(t2)
 
-    dl1.name = "embeddinglayer"
+    #dl1.name = "embeddinglayer"
 
     # subtracted = Subtract()([encoded_i1,encoded_i2])
 

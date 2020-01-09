@@ -1,6 +1,6 @@
-import keras
-from keras import Input, Model
-from keras.layers import Dense
+import tensorflow.keras
+from tensorflow.keras import Input, Model
+from tensorflow.keras.layers import Dense
 
 from dataset.makeTrainingData import makeSmartNData
 from models.eval import eval_normal_ann_l2, eval_chopra_ann
