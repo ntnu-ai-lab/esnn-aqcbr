@@ -56,7 +56,7 @@ rundict = {
 non_trainable = ["t1i1", "t2i1"]
 optimizer_dict = {
     "rprop": {"constructor": RProp2, "batch_size": "full"},
-    "adam": {"constructor": Adam, "batch_size":None},
+    "adam": {"constructor": Adam, "batch_size":2000},
     "rmsprop": {"constructor": RMSprop, "batch_size":None}
 }
 maketrainingdata_dict = {

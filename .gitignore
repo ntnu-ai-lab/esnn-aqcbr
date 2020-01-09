@@ -4,3 +4,5 @@ __pycache__
 *.pyc
 .DS_Store
 *.py~
+*.h5
+*.json
