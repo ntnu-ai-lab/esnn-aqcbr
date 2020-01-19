@@ -1,17 +1,15 @@
-import argparse
+simport argparse
 import sys
-
 import tensorflow.keras
-
 from utils.plotting import plotEmbeddingClusters
 from utils.runutils import getParser, parseMethod
 from dataset.dataset import Dataset
 from models.eval import sillouettescore
-
 import matplotlib
 from dataset.dataset_to_sklearn import fromDataSetToSKLearn
 import json as jsonlib
 import numpy as np
+import tensorflow as tf
 
 matplotlib.use('Agg')
 # import matplotlib as mpl
@@ -125,7 +123,7 @@ def main():
 
 
 
-        randommodel = keras.models.clone_model(embeddingmodel)
+        randommodel = tf.keras.models.clone_model(embeddingmodel)
         shuffle_weights(randommodel)
         indexes, modeltargets = plotEmbeddingClusters(save_directory, embeddingmodel,
                                                       randommodel,
@@ -144,7 +142,7 @@ def main():
                                         features[indexes],
                                         modeltargets)
             print(f"evalscore: {evalscore}")
-        
+
 
 
 if __name__ == "__main__":

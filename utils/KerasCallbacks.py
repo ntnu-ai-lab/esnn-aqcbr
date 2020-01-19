@@ -317,7 +317,7 @@ class MyTensorBoard(tensorflow.keras.callbacks.TensorBoard):
                  baseline=None,
                  save_best_only = False, save_weights_only = False,
                  period = 1, gabel=False, log_dir="./graph",
-                 histogram_freq=0, write_graph=True,
+                 histogram_freq=1, write_graph=True,
                  write_images=True, normal=False, evals=False):
         super(MyTensorBoard,self).__init__(log_dir, histogram_freq, write_graph, write_images)
         self.gabel=gabel

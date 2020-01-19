@@ -112,7 +112,7 @@ def make_eSNN_model(X, Y, networklayers, regression=False):
     # case we need more than one layers parameter
 
     # make C(x,y)
-    o_t = Lambda(keras_sqrt_diff)([t1, t2])
+    o_t = Lambda(keras_sqrt_diff,name="esnn_lambda")([t1, t2])
     for networklayer in c_layers:
         o_t = Dense(int(networklayer), activation="relu")(o_t)
 
@@ -138,5 +138,6 @@ def make_eSNN_model(X, Y, networklayers, regression=False):
     model = Model(inputs=[input1, input2],
                   outputs=[output, output1, output2])
 
+    # model.layers[2+len(g_layers)].name = "myown_esnn_lambda"
 
     return model, embeddingmodel

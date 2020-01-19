@@ -7,6 +7,7 @@ import tensorflow as tf
 import os
 import unittest
 import random
+import numpy as np
 
 """
 This test suite tests that the code actually trains a model, 
@@ -23,6 +24,12 @@ class ESNN_IRIS_TEST(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         print("in esnn iris test")
+    @staticmethod
+    def setSeed(seed):
+        os.environ['PYTHONHASHseed'] = str(seed)
+        random.seed(seed)
+        np.random.seed(seed)
+        tf.set_random_seed(seed)
 
     @staticmethod
     def makemodel(dataset, epochs, rootpath, optimizer="rprop"):
@@ -59,7 +66,6 @@ class ESNN_IRIS_TEST(unittest.TestCase):
     def testTrainESNN(self):
         random.seed(42)
         rootpath = "~/research/experiments/annSimilarity/mycbrwrapper/tests/"
-        print(f" training eagerly : {tf.executing_eagerly()}")
         rootpath = os.path.expanduser(rootpath)
         model, embedding_model, hist = \
             ESNN_IRIS_TEST.makemodel("iris", 200, rootpath)
@@ -68,12 +74,11 @@ class ESNN_IRIS_TEST(unittest.TestCase):
         lastloss = loss[len(loss)-1]
         print(f"RPROP firstloss: {firstloss} lastloss: {lastloss}")
         assert firstloss > lastloss
-
+        assert lastloss < 0.33  # as of 09.01.20 1954de71e8fc800e81a99d7a9e06750bcd214dad
 
     def testTrainESNNAdam(self):
         random.seed(42)
         rootpath = "~/research/experiments/annSimilarity/mycbrwrapper/tests/"
-        print(f" training eagerly : {tf.executing_eagerly()}")
         rootpath = os.path.expanduser(rootpath)
         model, embedding_model, hist = \
             ESNN_IRIS_TEST.makemodel("iris", 200, rootpath, "adam")
@@ -82,4 +87,4 @@ class ESNN_IRIS_TEST(unittest.TestCase):
         lastloss = loss[len(loss)-1]
         print(f"ADAM firstloss: {firstloss} lastloss: {lastloss}")
         assert firstloss > lastloss
-        
+        assert lastloss < 0.6 # as of 09.01.20 1954de71e8fc800e81a99d7a9e06750bcd214dad

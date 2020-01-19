@@ -109,8 +109,8 @@ def make_chopra_model(X, Y, networklayers, regression=False):
         t1 = dl1(t1)
         t2 = dl1(t2)
     # C(G(x),G(y) = L2(x,y)
-    distance_layer = keras.layers.Lambda(euclidean_distance,
-                                         output_shape=eucl_dist_output_shape)
+    distance_layer = tensorflow.keras.layers.Lambda(euclidean_distance,
+                                                    output_shape=eucl_dist_output_shape)
     distance = distance_layer([t1, t2])
     model = Model(inputs=[input1, input2], outputs=[distance])
     embeddingmodel = Model(inputs=[input1],outputs=[t1])
