@@ -228,9 +228,9 @@ def _eval_dual_ann(model, test_data, test_target, train_data, train_target,
                          np.tile(test_target[i], (train_data.shape[0], 1))
 
     # Sequential is just used by gabel..
-    if type(model) == keras.models.Sequential or gabel:
+    if type(model) == tensorflow.keras.models.Sequential or gabel:
         pred_vec = model.predict(combineddata[0:combineddata.shape[0], 0:train_data.shape[1] * 2], batch_size=batch_size)
-    elif type(model) == keras.models.Model:
+    elif type(model) == tensorflow.keras.models.Model:
         pred_vec = model.predict([combineddata[:, 0:train_data.shape[1]],
                                   combineddata[:,train_data.shape[1]:2*train_data.shape[1]]], batch_size=batch_size)
     else:
@@ -428,10 +428,10 @@ def _eval_dual_ann_big(model, test_data, test_target, train_data,
 
 
         # Sequential is just used by gabel..
-        if type(model) == keras.models.Sequential or gabel:
+        if type(model) == tensorflow.keras.models.Sequential or gabel:
             pred_vec = model.predict(thistest[:, 0:train_data.shape[1] * 2],
                                      batch_size=batch_size)
-        elif type(model) == keras.models.Model:
+        elif type(model) == tensorflow.keras.models.Model:
             pred_vec = model.predict([thistest[:, 0:train_data.shape[1]],
                                       thistest[:, train_data.shape[1]:2*train_data.shape[1]]],
                                       batch_size=thistest.shape[0])

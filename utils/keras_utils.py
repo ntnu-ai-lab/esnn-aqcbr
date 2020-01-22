@@ -49,13 +49,16 @@ def set_keras_parms(threads=0, gpu_fraction=0.3):
     tf.set_session(session)
 
 def set_keras_growth(gpunumber=0):
-    os.environ["CUDA_VISIBLE_DEVICES"] = str(gpunumber)
-    config = tf.ConfigProto()
-    config.gpu_options.allow_growth = True
-    tf.set_random_seed(1)
-    sess = tf.Session(config=config)
+    #os.environ["CUDA_VISIBLE_DEVICES"] = str(gpunumber)
+    #config = tf.compat.v1.ConfigProto()
+    # physical_devices = tf.config.list_physical_devices('XLA_GPU')
+    # print(f"using physical_devices[0]: f{physical_devices[0]}")
+    # tf.config.experimental.set_memory_growth(physical_devices[0], True)
+    # config.gpu_options.allow_growth = True
+    tf.random.set_seed(1)
+    #sess = tf.Session(config=config)
 
-    K.set_session(sess)
+    # K.set_session(sess)
 
 
 def manhattan_distance(A,B):

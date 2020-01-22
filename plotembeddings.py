@@ -1,4 +1,4 @@
-simport argparse
+import argparse
 import sys
 import tensorflow.keras
 from utils.plotting import plotEmbeddingClusters
