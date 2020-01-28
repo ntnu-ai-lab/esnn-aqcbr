@@ -10,6 +10,8 @@ from models.eval import eval_normal_ann_l2, eval_dual_ann, \
     eval_gabel_ann, eval_chopra_ann
 from dataset.dataset_to_sklearn import fromDataSetToSKLearn
 from models.rprop import RProp2
+from models.irprop2 import iRProp2notrack
+from models.lazyopt import LazyPowerSignOptimizer
 from models.type1 import sim_def_lin, sim_def_nonlin
 from dataset.makeTrainingData import makeDualSharedArchData,\
     makeGabelTrainingData, makeNData, makeSmartNData, makeSemiBig
@@ -54,8 +56,11 @@ rundict = {
 }
 
 non_trainable = ["t1i1", "t2i1"]
+
 optimizer_dict = {
     "rprop": {"constructor": RProp2, "batch_size": "full"},
+    "irprop-": {"constructor": iRProp2notrack, "batch_size": "full"},
+    "lazypowsig": {"constructor": LazyPowerSignOptimizer, "batch_size": "full"},
     "adam": {"constructor": Adam, "batch_size":2000},
     "rmsprop": {"constructor": RMSprop, "batch_size":None}
 }
@@ -171,6 +176,11 @@ def getParser():
                         help='comma delimited list of hidden layer sizes for '
                         +'g(.)',
                         type=str, nargs='+', action='append')
+    parser.add_argument('-l', '--learning_rate',
+                        metavar="lr",
+                        help='learning rate for optimizer',
+                        type=float)
+
 
     return parser
 
@@ -211,7 +221,7 @@ def getArgs(myargs=None):
 
 def runalldatasets(args, callbacks, datasetlist, rootpath,
                    runlist, alphalist, n, printcvresults=False,
-                   printcv=False, doevaluation=True, evalcount=False):
+                   printcv=False, doevaluation=True, evalcount=False, **kwargs):
     dataset_results = dict()
     datasetsdone = list()
     totalfolds = args.kfold
@@ -219,7 +229,10 @@ def runalldatasets(args, callbacks, datasetlist, rootpath,
         d = Dataset(dataset)
         datasetsdone.append(dataset)
         # d = ds.getDataset(dataset)
-        dsl, colmap, stratified_fold_generator = fromDataSetToSKLearn(d, args.onehot, n_splits=args.kfold)
+        dsl, colmap, \
+            stratified_fold_generator = fromDataSetToSKLearn(d,
+                                                             args.onehot,
+                                                             n_splits=args.kfold)
         data = dsl.getFeatures()
         target = dsl.getTargets()
 
@@ -264,7 +277,8 @@ def runalldatasets(args, callbacks, datasetlist, rootpath,
                                                train, alphalist=alphalist,
                                                printcvresults=printcvresults,
                                                n=n, doevaluation=doevaluation,
-                                               fold_number=fold_number)
+                                               fold_number=fold_number,
+                                               **kwargs)
             dataset_result[str(fold_number)] = fold_results
 
         dataset_results[dataset] = dataset_result
@@ -285,7 +299,8 @@ def runalldatasetsMPI(args, callbacks,
                       printcvresults=False,
                       printcv=False,
                       doevaluation=True,
-                      evalcount=False):
+                      evalcount=False,
+                      **kwargs):
     datasetsdone = list()
     dataset_results = dict()
     for dataset in datasetlist:
@@ -342,7 +357,7 @@ def runalldatasetsMPI(args, callbacks,
                                            test, train, alphalist=alphalist,
                                            printcvresults=printcvresults, n=n,
                                            doevaluation=doevaluation,
-                                           fold_number=fold_number)
+                                           fold_number=fold_number, **kwargs)
         mpicomm.barrier()
         if mpirank == 0:
             dataset_result[str(fold_number)] = fold_results
@@ -368,7 +383,8 @@ def rundataset(anynominal, args, callbacks, colmap, data,
                dataset, dsl, fold_results, min_losses,
                min_retain_losses, rootpath, runlist,
                target, test, train, alphalist, printcvresults=False,
-               n=0, doevaluation=True, fold_number=-1, evalcount=False):
+               n=0, doevaluation=True, fold_number=-1, evalcount=False,
+               **kwargs):
     ranlist = list()
     alphaiterations = False
     if len(runlist) == 1 and len(alphalist) > 1:
@@ -384,7 +400,8 @@ def rundataset(anynominal, args, callbacks, colmap, data,
                                   alphaiterations, printcvresults,
                                   n, alphatest=False,
                                   doevaluation=doevaluation,
-                                  fold_number=fold_number)
+                                  fold_number=fold_number,
+                                  **kwargs)
             ranlist.append(ranmethod)
     return fold_results, ranlist
 
@@ -395,7 +412,7 @@ def iteration(anynominal, args, callbacks, colmap, data,
               target, test, train, alpha,
               alphaiterations=False, printcvresults=False,
               n=0, alphatest=False, doevaluation=True,
-              fold_number=-1, evalcount=False):
+              fold_number=-1, evalcount=False, **kwargs):
     runner_split = None
     epochs = args.epochs
     makeTrainingDataKey = "split"
@@ -413,7 +430,7 @@ def iteration(anynominal, args, callbacks, colmap, data,
         if len(runner_split) > 1:
             optimizer = optimizer_dict[runner_split[1]]
         else:
-            optimizer = RProp
+            optimizer = RMSprop
         if len(runner_split) > 2:
             epochs = int(runner_split[2])
         if len(runner_split) > 3:
@@ -423,7 +440,7 @@ def iteration(anynominal, args, callbacks, colmap, data,
     makeTrainingData = maketrainingdata_dict[makeTrainingDataKey]
     makeTrainingDataFunc = makeTrainingData["func"]
     #if evalcount:
-    #    epoch = 
+    #    epoch =
     trainer = runnerdict["modeltrainer"]
     eval_func = runnerdict["eval"]
 
@@ -460,7 +477,8 @@ def iteration(anynominal, args, callbacks, colmap, data,
                                                  networklayers=args.hiddenlayers,
                                                  rootdir=rootpath,
                                                  alpha=alpha,
-                                                 makeTrainingData=makeTrainingDataFunc)
+                                                 makeTrainingData=makeTrainingDataFunc,
+**kwargs)
 
         min_loss = hist.history["loss"][len(hist.history["loss"]) - 1]
         fold_results[methodstring]["training_losses"] = hist.history["loss"]

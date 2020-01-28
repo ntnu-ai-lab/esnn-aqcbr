@@ -14,7 +14,7 @@ def esnn(o_X, o_Y, X, Y, datasetname, regression=False,
          batch_size=32, optimizer=None, onehot=True,
          multigpu=False, callbacks=None, trainratio=0.2,
          networklayers=[13, 13], rootdir="rootdir", alpha=0.8,
-         makeTrainingData=None):
+         makeTrainingData=None, **kwargs):
 
     if makeTrainingData is None:
         makeTrainingData = makeSmartNData
@@ -30,7 +30,7 @@ def esnn(o_X, o_Y, X, Y, datasetname, regression=False,
     if all([optimizer is not None, optimizer["batch_size"] is not None]):
         batch_size = X.shape[0]
     else:
-        batch_size = normalizeBatchSize(X, batch_size)
+        batch_size = normalizeBatchSize(X)
     if regression is not True:
         loss_dict = {#'dist_output': 'mean_squared_error',
                      'dist_output': 'binary_crossentropy',
@@ -46,13 +46,14 @@ def esnn(o_X, o_Y, X, Y, datasetname, regression=False,
         lossweight_dict = {'dist_output': alpha,
                            'reg_output1': (1.0-alpha)/2.0,
                            'reg_output2': (1.0-alpha)/2.0}
-
-    model.compile(optimizer=optimizer["constructor"](),
+    optimizer = optimizer["constructor"](**kwargs)
+    model.compile(optimizer=optimizer,
                   loss=loss_dict,
-                  metrics=['acc','mse'],loss_weights=lossweight_dict)
+                  metrics=['acc', 'mse'], loss_weights=lossweight_dict)
 
     features, targets, Y1, Y2 = makeTrainingData(X, Y, regression, distance=True)
-    training_data = [features[:,0:X.shape[1]],features[:,X.shape[1]:2*X.shape[1]]]
+    training_data = [features[:, 0:X.shape[1]],
+                     features[:, X.shape[1]:2*X.shape[1]]]
 
     target_data = [targets, Y1, Y2]
 

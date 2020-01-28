@@ -58,7 +58,8 @@ def main():
                                        runlist, alphalist=alphalist,
                                        n=i, printcvresults=args.cvsummary,
                                        printcv=args.printcv,
-                                       doevaluation=args.doevaluation))
+                                       doevaluation=args.doevaluation,
+                                       learning_rate=args.learning_rate))
         writejson(f"{rootpath}/data.json", nresults)
 
     resdf = pd.DataFrame(nresults)
