@@ -4,6 +4,7 @@ import math
 import tensorflow as tf
 import tensorflow.keras.models
 import random
+import torch
 
 import scipy.spatial.distance as scdist
 # input is a matrix concated from two matrices of the series of outputs of chopranet for pairs if
@@ -90,7 +91,7 @@ def getAscOrDescIndex(shape, asc):
         return 0
 
 def eval_dual_ann(model, test_data, test_target, train_data,
-                  train_target, batch_size, anynominal=False, 
+                  train_target, batch_size, anynominal=False,
                   colmap=None, gabel=False):
     return _eval_dual_ann(model, test_data, test_target, train_data,
                           train_target, batch_size, anynominal, colmap,
@@ -135,7 +136,7 @@ def roc(matrix, distindex, label_width,
     for t in np.arange(start, stop, delta):
         tp, fp, tn, fn, totn, totp = auc(matrix, t, distindex,
                                          label_width, label_indexes)
-        datalist.append({"tp": tp, "fp": fp, "tn": tn, "fn": fn, 
+        datalist.append({"tp": tp, "fp": fp, "tn": tn, "fn": fn,
                          "totn": totn, "totp": totp, "t": t,
                          "tpr": tp/totp, "fpr": fp/totn})
     return pd.DataFrame(data=datalist)
@@ -187,7 +188,7 @@ def old_auc(matrix, threshold, distindex, true_label, label_index):
             tp += 1
         else:
             fp += 1
-    return tp, fp 
+    return tp, fp
 
 def _eval_dual_ann(model, test_data, test_target, train_data, train_target,
                    batch_size, anynominal=False, colmap=None,
@@ -202,7 +203,7 @@ def _eval_dual_ann(model, test_data, test_target, train_data, train_target,
 
         # moving from left to right in this array..
 
-        # 1. for this sub-rectangle of the array we set the 
+        # 1. for this sub-rectangle of the array we set the
         # top-left corner to be the training data R_train
         combineddata[(i*train_data.shape[0]):((i+1)*train_data.shape[0]),
                     0:train_data.shape[1]] = train_data
@@ -210,9 +211,10 @@ def _eval_dual_ann(model, test_data, test_target, train_data, train_target,
         # 2. To right of 1. we set R_test to be right of R_train to be equal
         # to a copy of the test data at test_data[i], so combined this is all
         # combinations of test_data[i] and train_data[ı]
-        combineddata[(i*train_data.shape[0]):((i+1)*train_data.shape[0]),
-                    train_data.shape[1]:(train_data.shape[1]*2)] = \
-                        np.tile(test_data[i], (train_data.shape[0], 1))
+        combineddata[
+            (i*train_data.shape[0]):((i+1)*train_data.shape[0]),
+            train_data.shape[1]:(train_data.shape[1]*2)
+        ] = np.tile(test_data[i], (train_data.shape[0], 1))
 
         # 3. To the right 2. of R test we add columns that describe what
         # class/regression output is the true label/regression output of
@@ -222,10 +224,11 @@ def _eval_dual_ann(model, test_data, test_target, train_data, train_target,
 
         # 4. To the right of 23. O_train we set to the true label/reg
         # output of  the test_target[i]
-        combineddata[(i * train_data.shape[0]):((i + 1) * train_data.shape[0]),
-                    (train_data.shape[1] * 2) + test_target.shape[1]:
-                     (train_data.shape[1] * 2)+(2*test_target.shape[1])] = \
-                         np.tile(test_target[i], (train_data.shape[0], 1))
+        combineddata[
+            (i * train_data.shape[0]):((i + 1) * train_data.shape[0]),
+            (train_data.shape[1] * 2) + test_target.shape[1]:
+            (train_data.shape[1] * 2)+(2*test_target.shape[1])
+        ] = np.tile(test_target[i], (train_data.shape[0], 1))
 
     # Sequential is just used by gabel..
     if type(model) == tensorflow.keras.models.Sequential or gabel:
@@ -233,6 +236,11 @@ def _eval_dual_ann(model, test_data, test_target, train_data, train_target,
     elif type(model) == tensorflow.keras.models.Model:
         pred_vec = model.predict([combineddata[:, 0:train_data.shape[1]],
                                   combineddata[:,train_data.shape[1]:2*train_data.shape[1]]], batch_size=batch_size)
+    elif isinstance(model,torch.nn.Module):
+        pred_vec = model(torch.from_numpy(combineddata[:, 0:train_data.shape[1]]).to(torch.float32),
+                         torch.from_numpy(combineddata[:,train_data.shape[1]:2*train_data.shape[1]]).to(torch.float32))
+        pred_vec = pred_vec.detach().numpy()
+
     else:
         pred_vec = model.predict(combineddata[0:combineddata.shape[0], 0:train_data.shape[1] * 2])
 

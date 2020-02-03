@@ -80,6 +80,14 @@ class SKLearnDataset():
         targets = values[:, self.targetcolsfrom:self.targetcolsto]
         return features, targets
 
+    def getTuple(self, index):
+
+        features = self.df.iloc[index, self.featurecolsfrom:self.featurecolsto + 1]
+        targets = self.df.iloc[index, self.targetcolsfrom:self.targetcolsto]
+        return features, targets
+
+    def size(self):
+        return self.df.shape[0]
 
 def makeembeddings(categorical_vars, df):
     """

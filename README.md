@@ -78,7 +78,7 @@ of pip and pipenv, but you milage may wary.
 # Code
 
 Most of the intersting code that connects to the innovations of the paper can be
-found in the [models](models) directory (e.g. [esnn.py](models/esnn.py))
+found in the [models](models) directory (e.g. [esnn.py](models/esnn/keras.py))
 
 
 <a id="org665cddd"></a>

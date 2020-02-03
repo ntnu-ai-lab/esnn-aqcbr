@@ -68,7 +68,7 @@ def esnn(o_X, o_Y, X, Y, datasetname, regression=False,
         run_callbacks.append(cbo)
         ret_callbacks[callback] = cbo
     filepath = rootdir+"saved-model-{epoch:02d}-{accuracy:.2f}.hdf5"
-    run_callbacks.append(CustomModelCheckPoint(filepath="esnn", rootdir=rootdir))
+    run_callbacks.append(CustomModelCheckPoint(filepath="", rootdir=rootdir))
 
 
     test = np.hstack((features,targets))

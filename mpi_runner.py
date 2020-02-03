@@ -39,11 +39,11 @@ def main(mpirank, mpisize, mpicomm):
     pid = str(os.getpid())
     if args.prefix is not None:
         prefix = args.prefix
-    rootpath = prefix + pid + "_" + \
+    rootpath = prefix + "_" + pid + o\
         datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
 
     if mpirank == 0:
-        logger.info("in mpirank 0 creating directory")
+        logger.info(f"in mpirank0 my pid is {pid} the filestring is {rootpath}")
         createdir(rootpath)
         writejson(f"{rootpath}/settings.json", sys.argv[1:])
 
@@ -79,7 +79,9 @@ def main(mpirank, mpisize, mpicomm):
 
 
 if __name__ == "__main__":
+    logger = LoggingUtility.getInstance("mpirunner_main")
     comm = MPI.COMM_WORLD
     mpisize = comm.Get_size()
     mpirank = comm.Get_rank()
+    logger.info(f"in __main__ my mpirank is {mpirank}")
     main(mpirank, mpisize, comm)
