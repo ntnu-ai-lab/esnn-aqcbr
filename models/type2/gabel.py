@@ -1,11 +1,11 @@
-import os
 import torch
 from torch.nn import functional as F
 import pytorch_lightning as pl
-from models.esnn.pytorch_model import ESNNModel
-from utils.torch import ContrastiveLoss, RAdam, ESNNloss
+from utils.torch import ContrastiveLoss, RAdam
 from torch.optim.lr_scheduler import LambdaLR
 from torch.optim import RMSprop
+import numpy as np
+
 
 def get_linear_warmup_scheduler(optimizer, num_warmup_steps, last_epoch=-1):
     def lr_lambda(current_step):
@@ -29,16 +29,16 @@ def get_linear_warmup_scheduler(optimizer, num_warmup_steps, last_epoch=-1):
     # config.weight_decay = 1e-7
     # config.gradient_clip_val = 15
     # config.warmup_steps = 100
-class ESNNSystem(pl.LightningModule):
+class GabelTrainer(pl.LightningModule):
     def __init__(self, data, X, Y, networklayers=[13, 13],
                  lr=1e-4, betas=(0.9, 0.999), eps=1e-07,
                  weight_decay=1e-7, warmup_steps=100,
                  val_check_interval=250,
-                 val_percent_check=0.3, validation_func=None):
-        super(ESNNSystem, self).__init__()
+                 val_percent_check=0.3):
+        super(GabelTrainer, self).__init__()
         # not the best model...
-        self.model = ESNNModel(X, Y, networklayers).to(torch.float32)
-        self.loss = ESNNloss() #ContrastiveLoss()
+        self.model = GabelModel(X, Y, networklayers).to(torch.float32)
+        self.loss = ContrastiveLoss()
         #self.esnnloss = ESNNloss()
         self.train_loader = data
         self.dev_loader = data
@@ -51,8 +51,6 @@ class ESNNSystem(pl.LightningModule):
         self.warmup_steps = warmup_steps
         self.val_check_interval = val_check_interval
         self.val_percent_check = val_percent_check
-        self.valfunc = validation_func
-        self.device
 
     def forward(self, input1, input2):
         return self.model.forward(input1, input2)
@@ -60,34 +58,23 @@ class ESNNSystem(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         # REQUIRED
         x1, x2, y1, y2, label = batch
-        y_hat, inner_output1, inner_output2 = self.forward(x1, x2)
-        loss = self.loss.forward(y_hat, label, y1,
-                                 y2, inner_output1,
-                                 inner_output2)
+        y_hat = self.forward(x1, x2)
+        loss = self.loss.forward(y_hat, label)
         tensorboard_logs = {'train_loss': loss}
         return {'loss': loss, 'log': tensorboard_logs}
 
     def validation_step(self, batch, batch_idx):
         # OPTIONAL
-
-        # res, errdistvec, truedistvec, \
-        #     combineddata, pred_vec = self.evalfunc(self, data[test], target[test], data[train],
-        #                                            target[train], batch_size=32,
-        #                                            anynominal=False, colmap=colmap,
-        #                                            device=device)
-
         x1, x2, y1, y2, label = batch
-        y_hat, inner_output1, inner_output2 = self.forward(x1, x2)
-        return {'val_loss': self.loss.forward(y_hat, label, y1,
-                                              y2, inner_output1,
-                                              inner_output2)}
+        y_hat = self.forward(x1, x2)
+        return {'val_loss': self.loss.forward(y_hat, label)}
 
     def validation_end(self, outputs):
         # OPTIONAL
         avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
         tensorboard_logs = {'val_loss': avg_loss}
         self.current_val_loss = avg_loss
-        return {'avg_val_loss': avg_loss, 'lg': tensorboard_logs}
+        return {'avg_val_loss': avg_loss, 'log': tensorboard_logs}
 
     def test_step(self, batch, batch_idx):
         # OPTIONAL
@@ -145,7 +132,42 @@ class ESNNSystem(pl.LightningModule):
     def optimizer_step(self, epoch_nb, batch_nb, optimizer,
                        optimizer_i, second_order_closure=None):
         self.opt.step()
-        #self.opt.zero_grad()
-        #self.linear_warmup.step()
-        #if self.trainer.global_step % self.val_check_interval == 0:
-        #    self.reduce_lr_on_plateau.step(self.current_val_loss)
+
+def torch_euc_dist(t1, t2):
+    epsilon = torch.from_numpy(np.asarray([0.001])).to(torch.float32)
+    tmp = torch.sum(torch.pow(t1-t2, 2), axis=1)
+    return torch.sqrt(torch.max(tmp, epsilon))
+
+class GabelModel(torch.nn.Module):
+    def __init__(self, X, Y, networklayers=[13, 13]):
+        """
+
+        """
+        super(GabelModel, self).__init__()
+        input_shape = X.shape[1]*2
+        layers = networklayers
+        if isinstance(networklayers[0], list):
+            layers = networklayers[0]
+
+        self.L = torch.nn.ModuleList()
+        for networklayer in layers:
+            self.L.append(torch.nn.Linear(in_features=input_shape,
+                                          out_features=networklayer))
+            input_shape = networklayer
+
+        self.last = torch.nn.Linear(in_features=input_shape,
+                                    out_features=1)
+        self.relu = torch.nn.ReLU()
+        self.sigm = torch.nn.Sigmoid()
+
+    def forward_L(self, x):
+        y = x
+        for i in range(len(self.L)):
+            if torch.any(torch.isnan(y)):
+                print("isnan")
+            y = self.relu(self.L[i](y))
+        return self.sigm(self.last(y))
+
+    def forward(self, input1, input2):
+        cated = torch.cat((input1, input2), 1)
+        return self.forward_L(cated)

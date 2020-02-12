@@ -2,9 +2,9 @@ import time
 import numpy as np
 from tensorflow.keras.optimizers import Adam, RMSprop
 from dataset.dataset import Dataset
-from models.type2 import makeGabelArch
+from models.type2.keras import makeGabelArch
 from models.type4 import makeDualArch, makeEndToEndDualArch, makeEndToEndDualArchShared, dees_resnet
-from models.type3 import makeNormalArch, chopra, make_chopra_model
+from models.type3.keras import makeNormalArch, chopra, make_chopra_model
 from models.esnn.keras import esnn, make_eSNN_model
 from models.eval import eval_normal_ann_l2, eval_dual_ann, \
     eval_gabel_ann, eval_chopra_ann

@@ -92,14 +92,15 @@ def getAscOrDescIndex(shape, asc):
 
 def eval_dual_ann(model, test_data, test_target, train_data,
                   train_target, batch_size, anynominal=False,
-                  colmap=None, gabel=False):
+                  colmap=None, gabel=False, device = 'cuda:0'):
     return _eval_dual_ann(model, test_data, test_target, train_data,
                           train_target, batch_size, anynominal, colmap,
                           gabel=gabel, distance=True)
 
 
 def eval_gabel_ann(model, test_data, test_target, train_data,
-                   train_target, batch_size, anynominal=False, colmap=None):
+                   train_target, batch_size, anynominal=False,
+                   colmap=None, device = 'cuda:0'):
     return _eval_dual_ann(model, test_data, test_target, train_data,
                          train_target, batch_size, anynominal, colmap,
                          gabel=True, distance=False)
@@ -107,7 +108,7 @@ def eval_gabel_ann(model, test_data, test_target, train_data,
 
 def eval_chopra_ann(model, test_data, test_target, train_data,
                     train_target, batch_size, anynominal=False, colmap=None,
-                    distance = True):
+                    distance = True, device = 'cuda:0'):
     return _eval_dual_ann(model, test_data, test_target, train_data,
                          train_target, batch_size, anynominal, colmap,
                          gabel=False, distance=True)
@@ -190,9 +191,10 @@ def old_auc(matrix, threshold, distindex, true_label, label_index):
             fp += 1
     return tp, fp
 
+
 def _eval_dual_ann(model, test_data, test_target, train_data, train_target,
                    batch_size, anynominal=False, colmap=None,
-                   gabel=False, distance=True):
+                   gabel=False, distance=True, device = 'cuda:0'):
     if test_data.shape[0] != test_target.shape[0]:
         return
 
@@ -231,15 +233,17 @@ def _eval_dual_ann(model, test_data, test_target, train_data, train_target,
         ] = np.tile(test_target[i], (train_data.shape[0], 1))
 
     # Sequential is just used by gabel..
-    if type(model) == tensorflow.keras.models.Sequential or gabel:
+    if type(model) == tensorflow.keras.models.Sequential or (gabel and not isinstance(model,torch.nn.Module)):
         pred_vec = model.predict(combineddata[0:combineddata.shape[0], 0:train_data.shape[1] * 2], batch_size=batch_size)
     elif type(model) == tensorflow.keras.models.Model:
         pred_vec = model.predict([combineddata[:, 0:train_data.shape[1]],
                                   combineddata[:,train_data.shape[1]:2*train_data.shape[1]]], batch_size=batch_size)
     elif isinstance(model,torch.nn.Module):
-        pred_vec = model(torch.from_numpy(combineddata[:, 0:train_data.shape[1]]).to(torch.float32),
-                         torch.from_numpy(combineddata[:,train_data.shape[1]:2*train_data.shape[1]]).to(torch.float32))
-        pred_vec = pred_vec.detach().numpy()
+        pred_vec = model(torch.from_numpy(combineddata[:, 0:train_data.shape[1]]).to(torch.float32).to(device),
+                         torch.from_numpy(combineddata[:,train_data.shape[1]:2*train_data.shape[1]]).to(torch.float32).to(device))
+        if isinstance(pred_vec, tuple):
+            pred_vec = pred_vec[0]
+        pred_vec = pred_vec.detach().cpu().numpy()
 
     else:
         pred_vec = model.predict(combineddata[0:combineddata.shape[0], 0:train_data.shape[1] * 2])
@@ -273,6 +277,7 @@ def _eval_dual_ann(model, test_data, test_target, train_data, train_target,
     errdistvec = dict()
     truedistvec = dict()
     errvec = list()
+    sel_pred_vec = list()
     heh = 0
     for i in range(0, test_data.shape[0]):
         #first the select a subset of the array that corresponds to test_data[i] and all of train_data combined
@@ -281,7 +286,7 @@ def _eval_dual_ann(model, test_data, test_target, train_data, train_target,
         sortedsubset = subset[subset[:, subset.shape[1] - 2].argsort()]
         #extract the true labels/reg output of those rows for train and test respectively, compare if they are indeed the same..
         index = getAscOrDescIndex(sortedsubset.shape[0], not distance)
-        err = evalSortedsubset(sortedsubset, index,
+        err, tpred = evalSortedsubset(sortedsubset, index,
                                train_data.shape[1],
                                test_target.shape[1])
         true_target_value = sortedsubset[index, (train_data.shape[1] * 2) + test_target.shape[1]:(train_data.shape[1] * 2) + (2 * test_target.shape[1])]
@@ -290,21 +295,22 @@ def _eval_dual_ann(model, test_data, test_target, train_data, train_target,
             if tv in errdistvec:
                 errdistvec[tv] += 1
             else:
-                errdistvec[tv] = 0
+                errdistvec[tv] = 1
             heh += 1
             # print(f"boop {heh}")
         else:
             if tv in truedistvec:
                 truedistvec[tv] += 1
             else:
-                truedistvec[tv] = 0
+                truedistvec[tv] = 1
         errvec.append(err)
+        sel_pred_vec.append(tpred)
         #if np.equal(np.rint(this_train_target),np.rint(this_test_target)).all():
         #    errvec.append(1.0)
         #else:
         #    errvec.append(0)
 
-    return errvec, errdistvec, truedistvec, combineddata
+    return errvec, errdistvec, truedistvec, combineddata, sel_pred_vec
 
 
 import operator
@@ -382,23 +388,32 @@ def sillouettescore(model, features, targets):
     return sscore
 
 def evalSortedsubset(sortedsubset, index, datahape, targetshape):
+    # find out how many of calculated distances is
+    # equal to the lowest distance (sortedsubset[index,-2])
+    # if more than one we have a tie..
     sortedsubsettruth = sortedsubset[:,-2] == sortedsubset[index,-2]
+    # what is the one hot value of the true label at that point..
     true_target_value = sortedsubset[index, (datahape * 2) + targetshape:(datahape * 2) + (2 * targetshape)]
+    # what is the non-one hot value of the true label at that point
     true_target_reverse = np.argmax(true_target_value,axis=0)
+    # now we get all the lines where the distance is equally low(est)
     subsetsubset = sortedsubset[sortedsubsettruth,:]
+    # we double check that they are equal..
     unique, counts = np.unique(sortedsubsettruth,return_counts=True)
+    # zip them
     unique_counts = dict(zip(unique, counts))
-    if unique_counts[True] > 1:
+    if unique_counts[True] > 1: #if there are more than one with equal distance
         reverse = np.argmax(subsetsubset[:, (datahape * 2):(datahape * 2) + targetshape],axis=1)
         uniquer, countsr = np.unique(reverse, return_counts=True)
         unique_countsr = dict(zip(uniquer, countsr))
-        res1,res2 = topKey(unique_countsr)
+        res1, res2 = topKey(unique_countsr)
+        val = sortedsubset[index, -2]
         if (res2 is not None) and (res1[1] == res2[1]): # the two top classes are equally numbered..
-            return bool(random.getrandbits(1))
+            return bool(random.getrandbits(1)), val
         elif res1[0] == true_target_reverse:
-            return True
+            return True, val
         else:
-            return False
+            return False, val
         #if unique_countsr[tru]
         #hits = subsetsubset[:, (datahape * 2):(datahape * 2) + targetshape] == true_target_value
         #hits = np.all(hits,axis=1)
@@ -417,7 +432,7 @@ def evalSortedsubset(sortedsubset, index, datahape, targetshape):
 
     else:
         this_train_target = sortedsubset[index, (datahape * 2):(datahape * 2) + targetshape]
-        return all(np.equal(this_train_target,true_target_value))
+        return all(np.equal(this_train_target,true_target_value)), sortedsubset[index,-2]
 
 
 def _eval_dual_ann_big(model, test_data, test_target, train_data,

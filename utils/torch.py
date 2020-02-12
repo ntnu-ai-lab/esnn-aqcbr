@@ -1,43 +1,38 @@
 import torch
 from torch.utils.data import Dataset
 import random
-from dataset.makeTrainingData import makeDualSharedArchData
+from dataset.makeTrainingData import makeDualSharedArchData, makeGabelTrainingData
 import numpy as np
-import math
-from torch.optim.optimizer import Optimizer, required
-import onnx2keras
-from onnx2keras import onnx_to_keras
-import keras
-import onnx
-from pytorch2keras import pytorch_to_keras
+
+# def _pytorch2keras(model, input_var, shape= [(10, 32, 32,)]):
+#     # input_np = np.random.uniform(0, 1, (1, 10, 32, 32))
+#     # we should specify shape of the input tensor
+#     k_model = pytorch_to_keras(model, input_var, shape, verbose=True)
+#     return k_model
+#
+#
+# def torch_to_keras(model, input_list, output_list, ex_input, name):
+#     onnxfile = f"{name}.onnx"
+#     kerasfile = f"{name}k.h5"
+#     torch_to_onnx(model, ex_input, input_list, output_list, onnxfile)
+#     _onnx_to_keras(onnxfile, kerasfile, input_list)
+#
+#
+# def torch_to_onnx(model, ex_input, input_list, output_list, filename):
+#     torch.onnx.export(model, ex_input, filename, verbose=True,
+#                       input_names=input_list, output_names=output_list)
 
 
-def _pytorch2keras(model, input_var, shape= [(10, 32, 32,)]):
-    # input_np = np.random.uniform(0, 1, (1, 10, 32, 32))
-    # we should specify shape of the input tensor
-    k_model = pytorch_to_keras(model, input_var, shape, verbose=True)
-    return k_model
+# def _onnx_to_keras(onnxfile, kerasfile, inputlist):
+#     onnx_model = onnx.load(onnxfile,)
+#     k_model = onnx_to_keras(onnx_model, inputlist)
+#     keras.models.save_model(k_model, kerasfile,
+#                             overwrite=True,
+#                             include_optimizer=True)
 
-
-def torch_to_keras(model, input_list, output_list, ex_input, name):
-    onnxfile = f"{name}.onnx"
-    kerasfile = f"{name}k.h5"
-    torch_to_onnx(model, ex_input, input_list, output_list, onnxfile)
-    _onnx_to_keras(onnxfile, kerasfile, input_list)
-
-
-def torch_to_onnx(model, ex_input, input_list, output_list, filename):
-    torch.onnx.export(model, ex_input, filename, verbose=True,
-                      input_names=input_list, output_names=output_list)
-
-
-def _onnx_to_keras(onnxfile, kerasfile, inputlist):
-    onnx_model = onnx.load(onnxfile,)
-    k_model = onnx_to_keras(onnx_model, inputlist)
-    keras.models.save_model(k_model, kerasfile,
-                            overwrite=True,
-                            include_optimizer=True)
-
+def cross_entropy(pred, soft_targets):
+    logsoftmax = torch.nn.LogSoftmax()
+    return torch.mean(torch.sum(- soft_targets * logsoftmax(pred), 1))
 
 def _torch_abs(x1, x2):
     return torch.sqrt(torch.pow(x1-x2, 2))
@@ -59,11 +54,18 @@ class ContrastiveLoss(torch.nn.Module):
 
     def forward(self, distance, label):
         loss_contrastive = torch.mean((1-label) * torch.pow(distance, 2) +
-                                      (label) * torch.pow(torch.clamp(self.margin - distance, min=0.0), 2))
+                                      (label) * torch.pow(torch.clamp(self.margin - distance, min=0.001), 2))
         if torch.isnan(loss_contrastive):
             print("to nan!")
         return loss_contrastive
 
+def xentropy_cost(x_target, x_pred):
+    assert x_target.size() == x_pred.size(), "size fail ! "+str(x_target.size()) + " " + str(x_pred.size())
+    logged_x_pred = torch.log(x_pred)
+    cost_value = -torch.sum(x_target * logged_x_pred)
+    if torch.isnan(cost_value):
+        print("heh another nan")
+    return cost_value
 
 class ESNNloss(torch.nn.Module):
 
@@ -71,26 +73,26 @@ class ESNNloss(torch.nn.Module):
     def __init__(self, alpha=0.1):
         super(ESNNloss, self).__init__()
         self.alpha = alpha
+        self.smloss = torch.nn.MSELoss()
+        self.xloss = cross_entropy
 
-    def forward(self, distance, label, y1, y2, y1_hat, y2_hat):
+    def forward(self, distance, label,
+                y1, y2, y1_hat, y2_hat):
         ha = (1-self.alpha)/2
-        loss = (self.alpha)*_torch_abs(label-distance)
-        loss = loss + (ha * _torch_abs(y1-y1_hat)) + \
-            (ha * _torch_abs(y2-y2_hat))
+        loss = (self.alpha)*self.xloss(label, distance)
+        loss = loss + (ha * self.xloss(y1, y1_hat)) + \
+            (ha * self.xloss(y2, y2_hat))
+        if torch.isnan(loss):
+            print("is naan")
         return loss
 
 
 class TorchSKDataset(Dataset):
-    def __init__(self, sklearndataset, transform=None,should_invert=True):
+    def __init__(self, sklearndataset, trainidx, transform=None,should_invert=True, ):
         super(TorchSKDataset, self).__init__()
 
         self.sklearandataset = sklearndataset
-        self.sklearandatasetDualShared, \
-            self.targets, \
-            self.y1,\
-            self.y2 = \
-                makeDualSharedArchData(sklearndataset.getFeatures(),
-                                       sklearndataset.getTargets(), False)
+        self.loadData(sklearndataset, trainidx)
         self.transform = transform
         self.should_invert = should_invert
         self.featurelength = sklearndataset.featurecolsto - \
@@ -100,21 +102,28 @@ class TorchSKDataset(Dataset):
 
         self.x1stop = self.featurelength+1
         self.x2stop = 2*(self.featurelength+1)
+        self.x1s = torch.from_numpy(self.sklearandatasetDualShared[:, self.x1start:self.x1stop].astype('float')).to(torch.float32)
+        self.x2s = torch.from_numpy(self.sklearandatasetDualShared[:, self.x1start:self.x1stop].astype('float')).to(
+            torch.float32)
+        self.labels = torch.from_numpy(self.targets[:].astype('float')).to(torch.float32)
+
+    def loadData(self, sklearndataset, trainidx):
+        self.sklearandatasetDualShared, \
+            self.targets, \
+            self.y1,\
+            self.y2 = \
+                makeDualSharedArchData(sklearndataset.getFeatures()[trainidx],
+                                       sklearndataset.getTargets()[trainidx], False)
 
     def __getitem__(self, index):
         return self.getItem(index)
 
     def getItem(self, index):
-        matrix = self.sklearandatasetDualShared
-        x1 = torch.from_numpy(matrix[index, self.x1start:self.x1stop].astype('float')).to(torch.float32)
-        x2 = torch.from_numpy(matrix[index, self.x2start:self.x2stop].astype('float')).to(torch.float32)
-        #l1 = self.y1[index]
-        #l2 = self.y2[index]
-        #label = torch.from_numpy(np.array(int(np.all(l1 == l2))))
-        #label = torch.from_numpy(np.array([int(x1 != x2[1])],
-        #dtype=np.float32))
-        label = torch.from_numpy(self.targets[index].astype('float')).to(torch.float32)
-        return x1, x2, label
+        x1 = self.x1s[index]
+        x2 = self.x2s[index]
+        l1 = self.y1[index]
+        l2 = self.y2[index]
+        return x1, x2, l1, l2, self.labels[index]
 
     def getOrigItem(self, index):
         randind = random.randint(0, self.sklearandataset.size()-1)
@@ -138,7 +147,20 @@ class TorchSKDataset(Dataset):
                     break
 
     def __len__(self):
-        return self.sklearandataset.size()
+        return self.sklearandatasetDualShared.shape[0]
+
+class GabelTorchDataset(TorchSKDataset):
+    def loadData(self, sklearndataset, trainidx):
+        self.sklearandatasetDualShared, \
+            self.targets, \
+            self.y1,\
+            self.y2 = \
+                makeGabelTrainingData(sklearndataset.getFeatures()[trainidx],
+                                      sklearndataset.getTargets()[trainidx], False)
+
+    def __init__(self, sklearndataset, trainidx, transform=None,should_invert=True):
+        super(GabelTorchDataset, self).__init__(sklearndataset, trainidx)
+
 
 import math
 import torch

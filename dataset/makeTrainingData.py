@@ -8,14 +8,17 @@ def eucdistanceInstance(i1, i2, colname):
     v2 = i2.instance_parameters[colname]
     return eucdistance(v1, v2)
 
+def easycompare(target1, target2):
+    return all(np.equal(target1,target2))
+
 def eucdistance(v1, v2):
     return math.sqrt(math.pow(v1-v2, 2))
 
 def makeGabelTrainingData(features, targets, isregression, distance = False):
     #features = dsl.getFeatures()
 
-    #targets = dsl.getTargets()
-    #make the two 
+    #targets = dsl.getTargets() jaja
+    #make the two
     Y1 = np.zeros((features.shape[0] ** 2, targets.shape[1]))
     Y2 = np.zeros((features.shape[0] ** 2, targets.shape[1]))
     combineddata = np.zeros((features.shape[0] ** 2, 2 * features.shape[1]
@@ -55,16 +58,16 @@ def makeGabelTrainingData(features, targets, isregression, distance = False):
                 #    if targets[i][i3] == targets[i2][i3]:
                 #        counter += 1
                 compared = easycompare(targets[i],targets[i2])
-                targetout[(i * features.shape[0])+i2, 0] = compared
+                targetout[(i * features.shape[0])+i2, 0] = int(not compared)
 
             #print("hmm")
 
     combineddata[:,
     (features.shape[1] * 2) + (targets.shape[1] * 2):(features.shape[1] * 2) + (targets.shape[1]*2) + 1] = targetout
-    
+
     return combineddata[:,0:features.shape[1]*2],\
            combineddata[:,(features.shape[1] * 2) + (targets.shape[1] * 2):
-                          (features.shape[1] * 2) + (targets.shape[1]*2) + 1],Y1,Y2
+                          (features.shape[1] * 2) + (targets.shape[1]*2) + 1], Y1, Y2
 
 
 
@@ -123,9 +126,6 @@ def comparetargets(target1, target2):
         if target1[i] == target2[i]:
             counter += 1
     return counter / float(target1.shape[0])
-
-def easycompare(target1, target2):
-    return all(np.equal(target1,target2))
 
 def makeNData(features, targets, isregression, distance = True):
     combineddata = np.zeros((features.shape[0],(2*features.shape[1])))

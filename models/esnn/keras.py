@@ -51,7 +51,9 @@ def esnn(o_X, o_Y, X, Y, datasetname, regression=False,
                   loss=loss_dict,
                   metrics=['acc', 'mse'], loss_weights=lossweight_dict)
 
-    features, targets, Y1, Y2 = makeTrainingData(X, Y, regression, distance=True)
+    features, targets, Y1, Y2 = makeTrainingData(X, Y,
+                                                 regression,
+                                                 distance=True)
     training_data = [features[:, 0:X.shape[1]],
                      features[:, X.shape[1]:2*X.shape[1]]]
 
@@ -60,6 +62,7 @@ def esnn(o_X, o_Y, X, Y, datasetname, regression=False,
 
     run_callbacks = list()
     ret_callbacks = dict()
+
     filepath = rootdir + "esnn-weights.best.hdf5"
     for callback in callbacks:
         cbo = callbackdict[callback]["callback"](o_X, o_Y, X, Y,
@@ -71,7 +74,7 @@ def esnn(o_X, o_Y, X, Y, datasetname, regression=False,
     run_callbacks.append(CustomModelCheckPoint(filepath="", rootdir=rootdir))
 
 
-    test = np.hstack((features,targets))
+    test = np.hstack((features, targets))
     batch_size = features.shape[0]
     history = model.fit(training_data, target_data,
                         shuffle=True, epochs=epochs, batch_size=batch_size,

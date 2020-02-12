@@ -1,16 +1,8 @@
 from mycbrwrapper.rest import getRequest
-from mycbrwrapper.concepts import Concepts
-from dataset.dataset_to_cbr import fromDatasetToCBR
-from dataset.dataset import Dataset
-from dataset.datasetlist import datamap
-from dataset.dataset_to_sklearn import fromDataSetToSKLearn
 from mycbrwrapper.tests.test_dataset_to_cbr import ConvertDataSetTest, defaulthost
 from models.esnn import keras
-from models.type3 import chopra
-from models.rprop import RProp
 from dataset.makeTrainingData import makeDualSharedArchData
 from utils.runutils import optimizer_dict
-import unittest
 import logging
 import os
 import hashlib

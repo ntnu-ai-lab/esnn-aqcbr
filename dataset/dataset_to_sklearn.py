@@ -11,6 +11,7 @@ from sklearn_pandas import DataFrameMapper, cross_val_score
 import math
 from sklearn.utils import Bunch
 import numpy as np
+import itertools
 
 __name__ = "dataset_to_sklearn"
 
@@ -28,6 +29,10 @@ class SKLearnDataset():
         self.colnames = colnames
         self.target_names = target_names
         self.targetcolnames = targetcolnames
+        tmp = list(itertools.product(targetcolnames,target_names))
+        self.actual_target_cols = []
+        for tup in tmp:
+            self.actual_target_cols.append(f"{tup[0]}_{tup[1]}")
         self.dataset = dataset
         self.isregression = isregression
         #TODO theese two arguments needs to match (does not with opsitu and bal dataset for now)
@@ -88,6 +93,16 @@ class SKLearnDataset():
 
     def size(self):
         return self.df.shape[0]
+
+    def to_csv(self, file):
+        self.df.to_csv(file)
+
+    def unhotify(self):
+        dfc = self.df.copy()
+        df2 = dfc[self.actual_target_cols]
+        dfc["class"] = df2.idxmax(1)
+        dfc = dfc.drop(self.actual_target_cols,axis=1)
+        return dfc
 
 def makeembeddings(categorical_vars, df):
     """
