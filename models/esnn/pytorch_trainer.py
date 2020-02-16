@@ -6,6 +6,7 @@ from models.esnn.pytorch_model import ESNNModel
 from utils.torch import ContrastiveLoss, RAdam, ESNNloss
 from torch.optim.lr_scheduler import LambdaLR
 from torch.optim import RMSprop
+import numpy as np
 
 def get_linear_warmup_scheduler(optimizer, num_warmup_steps, last_epoch=-1):
     def lr_lambda(current_step):
@@ -30,19 +31,25 @@ def get_linear_warmup_scheduler(optimizer, num_warmup_steps, last_epoch=-1):
     # config.gradient_clip_val = 15
     # config.warmup_steps = 100
 class ESNNSystem(pl.LightningModule):
+
     def __init__(self, data, X, Y, networklayers=[13, 13],
                  lr=1e-4, betas=(0.9, 0.999), eps=1e-07,
                  weight_decay=1e-7, warmup_steps=100,
                  val_check_interval=250,
-                 val_percent_check=0.3, validation_func=None):
+                 val_percent_check=0.3,
+                 validation_func=None,
+                 train_data=None, train_target=None,
+                 test_data=None, test_target=None,
+                 colmap=None, device=None,
+                 dropoutrate=0.2):
         super(ESNNSystem, self).__init__()
         # not the best model...
-        self.model = ESNNModel(X, Y, networklayers).to(torch.float32)
+        self.model = ESNNModel(X, Y, networklayers, dropoutrate).to(torch.float32)
         self.loss = ESNNloss() #ContrastiveLoss()
         #self.esnnloss = ESNNloss()
         self.train_loader = data
         self.dev_loader = data
-        self.opt = RMSprop(self.model.parameters(), lr=0.2)
+        self.opt = torch.optim.Adam(self.model.parameters(), lr=lr)
         self.test_loader = data
         self.lr = lr
         self.betas = betas
@@ -51,8 +58,15 @@ class ESNNSystem(pl.LightningModule):
         self.warmup_steps = warmup_steps
         self.val_check_interval = val_check_interval
         self.val_percent_check = val_percent_check
-        self.valfunc = validation_func
-        self.device
+        self.evalfunc = validation_func
+        self.train_data = train_data
+        self.train_target = train_target
+
+        self.test_data = test_data
+        self.test_target = test_target
+        self.colmap = colmap
+        self.device = device
+        #self.register_backward_hook(self.printgradnorm)
 
     def forward(self, input1, input2):
         return self.model.forward(input1, input2)
@@ -69,25 +83,32 @@ class ESNNSystem(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         # OPTIONAL
-
+        #
         # res, errdistvec, truedistvec, \
-        #     combineddata, pred_vec = self.evalfunc(self, data[test], target[test], data[train],
-        #                                            target[train], batch_size=32,
-        #                                            anynominal=False, colmap=colmap,
-        #                                            device=device)
+        #     combineddata, pred_vec = self.evalfunc(self, self.test_data, self.test_target,
+        #                                            self.train_data, self.train_target,
+        #                                            batch_size=self.train_data.shape[0]*self.test_data.shape[0],
+        #                                            anynominal=False, colmap=self.colmap,
+        #                                            device=self.device)
 
-        x1, x2, y1, y2, label = batch
-        y_hat, inner_output1, inner_output2 = self.forward(x1, x2)
-        return {'val_loss': self.loss.forward(y_hat, label, y1,
-                                              y2, inner_output1,
-                                              inner_output2)}
+        return None#{'val_loss': torch.from_numpy(np.asarray([np.sum(res)/len(res)]))}
 
     def validation_end(self, outputs):
         # OPTIONAL
-        avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
+        #avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
+        #tensorboard_logs = {'val_loss': avg_loss}
+        #self.current_val_loss = avg_loss
+        #return {'avg_val_loss': avg_loss, 'lg': tensorboard_logs}
+        res, errdistvec, truedistvec, \
+            combineddata, pred_vec = self.evalfunc(self, self.test_data, self.test_target,
+                                                   self.train_data, self.train_target,
+                                                   batch_size=self.train_data.shape[0]*self.test_data.shape[0],
+                                                   anynominal=False, colmap=self.colmap,
+                                                   device=self.device)
+        avg_loss = torch.from_numpy(np.asarray([1.0-np.sum(res)/len(res)]))
         tensorboard_logs = {'val_loss': avg_loss}
         self.current_val_loss = avg_loss
-        return {'avg_val_loss': avg_loss, 'lg': tensorboard_logs}
+        return {'avg_val_loss': avg_loss, 'val_loss': avg_loss, 'lg': tensorboard_logs}
 
     def test_step(self, batch, batch_idx):
         # OPTIONAL
@@ -120,12 +141,12 @@ class ESNNSystem(pl.LightningModule):
         return self.test_loader
 
     def configure_optimizers(self):
-        self.opt = RAdam(self.model.parameters(),
-                         lr=self.lr,
-                         betas=self.betas,
-                         eps=self.eps,
-                         weight_decay=self.weight_decay,
-                         degenerated_to_sgd=True)
+        # self.opt = RAdam(self.model.parameters(),
+        #                  lr=self.lr,
+        #                  betas=self.betas,
+        #                  eps=self.eps,
+        #                  weight_decay=self.weight_decay,
+        #                  degenerated_to_sgd=True)
 
         # self.linear_warmup = \
         #     get_linear_warmup_scheduler(self.opt,
@@ -149,3 +170,16 @@ class ESNNSystem(pl.LightningModule):
         #self.linear_warmup.step()
         #if self.trainer.global_step % self.val_check_interval == 0:
         #    self.reduce_lr_on_plateau.step(self.current_val_loss)
+
+    def printgradnorm(self, grad_input, grad_output, fml):
+        print('Inside ' + self.__class__.__name__ + ' backward')
+        print('Inside class:' + self.__class__.__name__)
+        print('')
+        print('grad_input: ', type(grad_input))
+        print('grad_input[0]: ', type(grad_input[0]))
+        print('grad_output: ', type(grad_output))
+        print('grad_output[0]: ', type(grad_output[0]))
+        print('')
+        print('grad_input size:', grad_input[0].size())
+        print('grad_output size:', grad_output[0].size())
+        print('grad_input norm:', grad_input[0].norm())

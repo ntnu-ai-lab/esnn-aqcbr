@@ -34,7 +34,12 @@ class ChopraTrainer(pl.LightningModule):
                  lr=1e-4, betas=(0.9, 0.999), eps=1e-07,
                  weight_decay=1e-7, warmup_steps=100,
                  val_check_interval=250,
-                 val_percent_check=0.3):
+                 val_percent_check=0.3,
+                 validation_func=None,
+                 train_data=None, train_target=None,
+                 test_data=None, test_target=None,
+                 colmap=None, device=None,
+                 dropoutrate=0.2):
         super(ChopraTrainer, self).__init__()
         # not the best model...
         self.model = ChopraModel(X, Y, networklayers).to(torch.float32)
@@ -134,14 +139,15 @@ class ChopraTrainer(pl.LightningModule):
         self.opt.step()
 
 
-def torch_euc_dist(t1, t2):
-    epsilon = torch.from_numpy(np.asarray([0.001])).to(torch.float32)
+def torch_euc_dist(t1, t2, device='cuda:0'):
+    epsilon = torch.from_numpy(np.asarray([0.001]))\
+                   .to(torch.float32).to(device)
     tmp = torch.sum(torch.pow(t1-t2, 2), axis=1)
     return torch.sqrt(torch.max(tmp, epsilon))
 
 
 class ChopraModel(torch.nn.Module):
-    def __init__(self, X, Y, networklayers=[13, 13]):
+    def __init__(self, X, Y, networklayers=[13, 13], dropoutrate=0.05):
         """
 
         """
@@ -162,9 +168,11 @@ class ChopraModel(torch.nn.Module):
         # given S(x,y) = C(G(x),G(y)):
         # \hat{x} = G(x)
         self.G = torch.nn.ModuleList()
+        self.G_size = len(g_layers)
         for networklayer in g_layers:
             self.G.append(torch.nn.Linear(in_features=input_shape,
                                           out_features=networklayer))
+            self.G.append(torch.nn.Dropout(dropoutrate))
             input_shape = networklayer
 
         self.inner_output = torch.nn.Linear(in_features=input_shape,
@@ -175,10 +183,8 @@ class ChopraModel(torch.nn.Module):
 
     def forward_G(self, x):
         y = x
-        for i in range(len(self.G)):
-            if torch.any(torch.isnan(y)):
-                print("isnan")
-            y = self.relu(self.G[i](y))
+        for layer in self.G:
+            y = self.relu(layer(y))
         return y
 
     def forward(self, input1, input2):

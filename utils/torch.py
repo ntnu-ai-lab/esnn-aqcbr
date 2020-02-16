@@ -30,9 +30,9 @@ import numpy as np
 #                             overwrite=True,
 #                             include_optimizer=True)
 
-def cross_entropy(pred, soft_targets):
+def cross_entropy(y_hat, y):
     logsoftmax = torch.nn.LogSoftmax()
-    return torch.mean(torch.sum(- soft_targets * logsoftmax(pred), 1))
+    return torch.mean(torch.sum(- y * logsoftmax(y_hat), 1))
 
 def _torch_abs(x1, x2):
     return torch.sqrt(torch.pow(x1-x2, 2))
@@ -73,15 +73,20 @@ class ESNNloss(torch.nn.Module):
     def __init__(self, alpha=0.1):
         super(ESNNloss, self).__init__()
         self.alpha = alpha
-        self.smloss = torch.nn.MSELoss()
-        self.xloss = cross_entropy
+        self.loss = torch.nn.BCELoss()
+        self.xloss = torch.nn.CrossEntropyLoss()
+        self.alpha = torch.from_numpy(np.asarray([alpha])).to('cuda:0')
+        self.ha = ((1-self.alpha)/2).to('cuda:0')
 
-    def forward(self, distance, label,
+
+    def forward(self, y_hat, y,
                 y1, y2, y1_hat, y2_hat):
-        ha = (1-self.alpha)/2
-        loss = (self.alpha)*self.xloss(label, distance)
-        loss = loss + (ha * self.xloss(y1, y1_hat)) + \
-            (ha * self.xloss(y2, y2_hat))
+
+        syhat = y_hat#.squeeze()
+        sy = y#.squeeze()
+        loss = (self.alpha)*self.loss(syhat, sy)
+        loss = loss + (self.ha * self.xloss(y1_hat, torch.max(y1,1)[1])) + \
+            (self.ha * self.xloss(y2_hat, torch.max(y2,1)[1]))
         if torch.isnan(loss):
             print("is naan")
         return loss
@@ -103,7 +108,7 @@ class TorchSKDataset(Dataset):
         self.x1stop = self.featurelength+1
         self.x2stop = 2*(self.featurelength+1)
         self.x1s = torch.from_numpy(self.sklearandatasetDualShared[:, self.x1start:self.x1stop].astype('float')).to(torch.float32)
-        self.x2s = torch.from_numpy(self.sklearandatasetDualShared[:, self.x1start:self.x1stop].astype('float')).to(
+        self.x2s = torch.from_numpy(self.sklearandatasetDualShared[:, self.x2start:self.x2stop].astype('float')).to(
             torch.float32)
         self.labels = torch.from_numpy(self.targets[:].astype('float')).to(torch.float32)
 
