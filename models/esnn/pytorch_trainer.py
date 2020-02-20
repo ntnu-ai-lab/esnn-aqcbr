@@ -48,7 +48,7 @@ class ESNNSystem(pl.LightningModule):
         self.loss = ESNNloss() #ContrastiveLoss()
         #self.esnnloss = ESNNloss()
         self.train_loader = data
-        self.dev_loader = data
+        self.dev_loader = data,
         self.opt = torch.optim.Adam(self.model.parameters(), lr=lr)
         self.test_loader = data
         self.lr = lr

@@ -15,6 +15,8 @@ from sklearn.metrics import matthews_corrcoef
 def runevaler(datasetname, epochs, model, torchevaler, evalfunc,
               networklayers=[13, 13], lr=0.02, dropoutrate=0.5,
               validate_on_k=10, filenamepostfix=""):
+    #print("evaling model: ")
+    #model.summarize(model,mode="full")
     device = "cpu"
     gpus = None
     if torch.cuda.is_available():
@@ -61,7 +63,9 @@ def runevaler(datasetname, epochs, model, torchevaler, evalfunc,
                          train_target=train_target, test_data=test_data,
                          test_target=test_target, colmap=colmap)
     t0 = time.time()
-    evaler.myeval(sys,epochs,sys.opt,sys.loss, device)
+    torchmodels, \
+        jitmodels = evaler.myeval(sys, epochs,
+                                  sys.opt, sys.loss, device)
     t1 = time.time()
     diff = t1-t0
     print(f"spent {diff} time training {diff/epochs} per epoch")
@@ -82,6 +86,7 @@ def runevaler(datasetname, epochs, model, torchevaler, evalfunc,
     print(f"errdistvec: {errdistvec}")
     print(f"truedistvec: {truedistvec}")
     print(f"MCC: {matthews_corrcoef(ires,ipred)}")
+    return sys, test_data, evaler
 
 
 class TorchEvaler():
@@ -124,23 +129,26 @@ class TorchEvaler():
 
 
 
-    def evalepoch(self,  model, criterion, optim):
+    def evalepoch(self, model, criterion, optim):
         """
         This code is for evaluating ESNN and computing the loss..
         """
         y_hat, inner_output1, inner_output2 = model(self.x1s, self.x2s)
         loss = criterion(y_hat, self.labels, self.y1,
                          self.y2, inner_output1, inner_output2)
+        return loss
 
 
     def myeval(self, model, epochs, optim, criterion, device):
         batch_size = self.train_data.shape[0]*self.test_data.shape[0]
         self.trainerio.model = model
         lastbest = 1
+        torchmodels = []
+        jitmodels = []
         for epoch in range(epochs):
             #idx = torch.randperm(self.x1s.nelement())
             optim.zero_grad()
-            loss = self.evalepoch()
+            loss = self.evalepoch(model, criterion, optim)
             loss.backward()
             optim.step()
             self.trainerio.current_epoch = epoch
@@ -171,14 +179,15 @@ class TorchEvaler():
                     smod.eval()
                     smod = smod.cpu()
                     filepath = self.modelcheckpoint.filepath+".pt1"
-                    print(f"saving java model to {filepath} new {val_loss} old {old_loss}")
+                    print(f" Epoch [{epoch}/{epochs}] saving java model to {filepath} new {val_loss} old {old_loss}")
                     smod.save(filepath)
+                    jitmodels.append(smod)
                 tensorboard_logs = {'val_loss': val_loss}
                 metrics = {'val_loss': val_loss, 'lg': tensorboard_logs}
                 self.modelcheckpoint.on_epoch_end(epoch, metrics)
 
-            print('Epoch [%d/%d], loss: %.4f,'
-                  % (epoch, epochs, loss.data))
+            #print('Epoch [%d/%d], loss: %.4f,'
+            #      % (epoch, epochs, loss.data))
 
     def loadData(self, sklearndataset, trainidx):
         self.data, \
@@ -187,6 +196,23 @@ class TorchEvaler():
             self.y2 = \
                 makeDualSharedArchData(sklearndataset.getFeatures()[trainidx],
                                        sklearndataset.getTargets()[trainidx], False)
+
+
+
+
+class ChopraTorchEvaler(TorchEvaler):
+    def __init__(self, *args, **kwargs):
+        super(ChopraTorchEvaler, self).__init__(*args, **kwargs)
+        self.labels = self.labels.squeeze()
+
+    def evalepoch(self,  model, criterion, optim):
+        """
+        This code is for evaluating Chopra and computing the loss..
+        """
+        y_hat = model(self.x1s, self.x2s)
+        loss = criterion(y_hat, self.labels)
+
+        return loss
 
 class GabelTorchEvaler(TorchEvaler):
     def loadData(self, sklearndataset, trainidx):
@@ -197,28 +223,22 @@ class GabelTorchEvaler(TorchEvaler):
                 makeGabelTrainingData(sklearndataset.getFeatures()[trainidx],
                                       sklearndataset.getTargets()[trainidx], False)
 
-    def __init__(self, sklearndataset, trainidx, transform=None,should_invert=True):
-        super(GabelTorchEvaler, self).__init__(sklearndataset, trainidx)
+    def __init__(self, *args, **kwargs):
+        super(GabelTorchEvaler, self).__init__(*args, **kwargs)
+
 
     def evalepoch(self,  model, criterion, optim):
         """
-        This code is for evaluating ESNN and computing the loss..
+        This code is for evaluating GAbel and computing the loss..
         """
-        y_hat, inner_output1, inner_output2 = model(self.x1s, self.x2s)
-        loss = criterion(y_hat, self.labels, self.y1,
-                         self.y2, inner_output1, inner_output2)
-
-        return loss
-
-
-class ChopraTorchEvaler(TorchEvaler):
-    def __init__(self, sklearndataset, trainidx, transform=None,should_invert=True):
-        super(GabelTorchEvaler, self).__init__(sklearndataset, trainidx)
-
-    def evalepoch(self,  model, criterion, optim):
-        """
-        This code is for evaluating ESNN and computing the loss..
-        """
+        # inp1 = torch.cat([self.x1s, self.x2s], dim=0).squeeze()
+        # inp2 = torch.cat([self.x2s, self.x1s], dim=0).squeeze()
+        # ll = torch.cat([self.labels, self.labels], dim=0)
+        # llones = torch.ones(ll.shape).to(torch.float32).to("cuda:0")
+        # ll = ll-llones
+        # ll = torch.pow(ll,2)
+        # y_hat = model(inp1, inp2)
+        # loss = criterion(y_hat, ll)
         y_hat = model(self.x1s, self.x2s)
         loss = criterion(y_hat, self.labels)
 

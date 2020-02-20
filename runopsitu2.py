@@ -9,13 +9,14 @@ from models.esnn.pytorch_trainer import ESNNSystem
 from dataset.dataset import Dataset
 from utils.torch import TorchSKDataset
 from pytorch_lightning import Trainer
-from models.eval import eval_dual_ann
+from models.eval import eval_dual_ann, eval_gabel_ann
 from torch.utils.data import DataLoader
 import numpy as np
 from models.esnn.tests.pytorch_esnn_test import ESNNTest
 from pytorch_lightning.callbacks import ModelCheckpoint
-from utils.torcheval import TorchEvaler, runevaler, ChopraTorchEvaler
+from utils.torcheval import TorchEvaler, runevaler, ChopraTorchEvaler, GabelTorchEvaler
 import torch
+from models.type2.gabel import GabelTrainer
 import os
 import time
 from sklearn.metrics import matthews_corrcoef
@@ -103,15 +104,48 @@ def testTorchESNNOPSITU2(datasetname, epochs, eval_on_k, filename):
               lr=.09, dropoutrate=0.5, eval_on_k=eval_on_k,
               filenamepostfix=filename)
 
+def choprairis():
+    runevaler("iris", 200, ChopraTrainer, ChopraTorchEvaler,
+               eval_dual_ann, networklayers=[40, 40],
+               lr=.05, dropoutrate=0.05, validate_on_k=10,
+               filenamepostfix="chopra")
+
+def chopraopsitu():
+    model, \
+        test_data, \
+        evaler = runevaler("opsitu", 200, ChopraTrainer, ChopraTorchEvaler,
+                           eval_dual_ann, networklayers=[70, 50, 40],
+                           lr=.05, dropoutrate=0.3, validate_on_k=10,
+                           filenamepostfix="chopra")
+    print(model(evaler.x1s[0], evaler.x1s[0]))
+    print(model(evaler.x1s[2], evaler.x1s[0]))
+
+def gabeliris():
+    runevaler("iris", 2000, GabelTrainer, GabelTorchEvaler,
+              eval_dual_ann, networklayers=[40, 40, 40],
+              lr=.01, dropoutrate=0.00, validate_on_k=10,
+              filenamepostfix="gabel")
+
+def gabelopsitu():
+    runevaler("opsitu", 2000, GabelTrainer, GabelTorchEvaler,
+              eval_gabel_ann, networklayers=[70, 50, 20],
+              lr=.03, dropoutrate=0.3, validate_on_k=10,
+              filenamepostfix="gabel")
+def esnnopsitu():
+    runevaler("opsitu", 2000, ESNNSystem, TorchEvaler, eval_dual_ann, networklayers=[70, 50, 40], lr=.02,
+              dropoutrate=0.05, validate_on_k=10, filenamepostfix="esnn")
+def esnniris():
+    runevaler("iris", 200, ESNNSystem, TorchEvaler, eval_dual_ann, networklayers=[40, 40, 40], lr=.02,
+              dropoutrate=0.05, validate_on_k=10, filenamepostfix="esnn")
 
 if __name__ == "__main__":
+    #gabeliris()
+    #gabelopsitu()
+    chopraopsitu()
+    #esnnopsitu()
+    #esnniris()
     #testTorchESNNOPSITU2("iris",200)
-    #runevaler("iris", 200, ESNNSystem, TorchEvaler, eval_dual_ann, networklayers=[40, 40, 40], lr=.02,
-    #          dropoutrate=0.05)
-    #runevaler("opsitu", 2000, ESNNSystem, TorchEvaler, eval_dual_ann, networklayers=[40, 40, 40], lr=.02,
-    #          dropoutrate=0.05)
-    runevaler("opsitu", 2000, ChopraTrainer, ChopraTorchEvaler,
-              eval_dual_ann, networklayers=[40, 40, 40],
-              lr=.05, dropoutrate=0.05, validate_on_k=10,
-              filenamepostfix="chopra")
+
+
+
     #testTorchESNNOPSITU("iris",200)

@@ -34,15 +34,21 @@ class GabelTrainer(pl.LightningModule):
                  lr=1e-4, betas=(0.9, 0.999), eps=1e-07,
                  weight_decay=1e-7, warmup_steps=100,
                  val_check_interval=250,
-                 val_percent_check=0.3):
+                 val_percent_check=0.3,
+                 validation_func=None,
+                 train_data=None, train_target=None,
+                 test_data=None, test_target=None,
+                 colmap=None, device=None,
+                 dropoutrate=0.05):
         super(GabelTrainer, self).__init__()
         # not the best model...
-        self.model = GabelModel(X, Y, networklayers).to(torch.float32)
-        self.loss = ContrastiveLoss()
+        self.model = GabelModel(X, Y, networklayers, dropoutrate).to(torch.float32)
+        self.loss = torch.nn.BCELoss()
         #self.esnnloss = ESNNloss()
         self.train_loader = data
         self.dev_loader = data
-        self.opt = RMSprop(self.model.parameters(), lr=0.2)
+        self.opt = torch.optim.Adam(self.model.parameters(), lr=lr)
+        #self.opt = RMSprop(self.model.parameters(), lr=0.2)
         self.test_loader = data
         self.lr = lr
         self.betas = betas
@@ -51,6 +57,8 @@ class GabelTrainer(pl.LightningModule):
         self.warmup_steps = warmup_steps
         self.val_check_interval = val_check_interval
         self.val_percent_check = val_percent_check
+        self.colmap = colmap
+        self.device = device
 
     def forward(self, input1, input2):
         return self.model.forward(input1, input2)
@@ -107,12 +115,12 @@ class GabelTrainer(pl.LightningModule):
         return self.test_loader
 
     def configure_optimizers(self):
-        self.opt = RAdam(self.model.parameters(),
-                         lr=self.lr,
-                         betas=self.betas,
-                         eps=self.eps,
-                         weight_decay=self.weight_decay,
-                         degenerated_to_sgd=True)
+        # self.opt = RAdam(self.model.parameters(),
+        #                  lr=self.lr,
+        #                  betas=self.betas,
+        #                  eps=self.eps,
+        #                  weight_decay=self.weight_decay,
+        #                  degenerated_to_sgd=True)
 
         # self.linear_warmup = \
         #     get_linear_warmup_scheduler(self.opt,
@@ -139,7 +147,7 @@ def torch_euc_dist(t1, t2):
     return torch.sqrt(torch.max(tmp, epsilon))
 
 class GabelModel(torch.nn.Module):
-    def __init__(self, X, Y, networklayers=[13, 13]):
+    def __init__(self, X, Y, networklayers=[13, 13], dropoutrate=0.05):
         """
 
         """
@@ -153,6 +161,7 @@ class GabelModel(torch.nn.Module):
         for networklayer in layers:
             self.L.append(torch.nn.Linear(in_features=input_shape,
                                           out_features=networklayer))
+            self.L.append(torch.nn.Dropout(dropoutrate))
             input_shape = networklayer
 
         self.last = torch.nn.Linear(in_features=input_shape,
@@ -160,14 +169,16 @@ class GabelModel(torch.nn.Module):
         self.relu = torch.nn.ReLU()
         self.sigm = torch.nn.Sigmoid()
 
-    def forward_L(self, x):
+    def forward_stack(self, x):
         y = x
-        for i in range(len(self.L)):
-            if torch.any(torch.isnan(y)):
-                print("isnan")
-            y = self.relu(self.L[i](y))
+        for layer in self.L:
+            y = self.sigm(layer(y))
+        return y
+
+    def forward_all(self, x):
+        y = self.forward_stack(x)
         return self.sigm(self.last(y))
 
     def forward(self, input1, input2):
-        cated = torch.cat((input1, input2), 1)
-        return self.forward_L(cated)
+        cated = torch.cat([input1, input2], 1)
+        return self.forward_all(cated)

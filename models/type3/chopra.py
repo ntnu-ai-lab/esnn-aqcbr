@@ -42,12 +42,16 @@ class ChopraTrainer(pl.LightningModule):
                  dropoutrate=0.2):
         super(ChopraTrainer, self).__init__()
         # not the best model...
-        self.model = ChopraModel(X, Y, networklayers).to(torch.float32)
-        self.loss = ContrastiveLoss()
+        self.model = ChopraModel(X, Y, networklayers,
+                                 dropoutrate).to(torch.float32)
+        self.loss = torch.nn.BCEWithLogitsLoss(size_average=True)
+        #self.loss = ContrastiveLoss()
+        #self.loss = torch.nn.BCELoss()
+        #self.loss = torch.nn.CrossEntropyLoss()
         #self.esnnloss = ESNNloss()
         self.train_loader = data
         self.dev_loader = data
-        self.opt = RMSprop(self.model.parameters(), lr=0.2)
+        self.opt = torch.optim.Adam(self.model.parameters(), lr=lr)
         self.test_loader = data
         self.lr = lr
         self.betas = betas
@@ -56,6 +60,8 @@ class ChopraTrainer(pl.LightningModule):
         self.warmup_steps = warmup_steps
         self.val_check_interval = val_check_interval
         self.val_percent_check = val_percent_check
+        self.colmap = colmap
+        self.device = device
 
     def forward(self, input1, input2):
         return self.model.forward(input1, input2)
@@ -112,12 +118,12 @@ class ChopraTrainer(pl.LightningModule):
         return self.test_loader
 
     def configure_optimizers(self):
-        self.opt = RAdam(self.model.parameters(),
-                         lr=self.lr,
-                         betas=self.betas,
-                         eps=self.eps,
-                         weight_decay=self.weight_decay,
-                         degenerated_to_sgd=True)
+        # self.opt = RAdam(self.model.parameters(),
+        #                  lr=self.lr,
+        #                  betas=self.betas,
+        #                  eps=self.eps,
+        #                  weight_decay=self.weight_decay,
+        #                  degenerated_to_sgd=True)
 
         # self.linear_warmup = \
         #     get_linear_warmup_scheduler(self.opt,
@@ -139,10 +145,8 @@ class ChopraTrainer(pl.LightningModule):
         self.opt.step()
 
 
-def torch_euc_dist(t1, t2, device='cuda:0'):
-    epsilon = torch.from_numpy(np.asarray([0.001]))\
-                   .to(torch.float32).to(device)
-    tmp = torch.sum(torch.pow(t1-t2, 2), axis=1)
+def torch_euc_dist(t1, t2, epsilon):
+    tmp = torch.sum(torch.pow(t1-t2, 2), dim=1)
     return torch.sqrt(torch.max(tmp, epsilon))
 
 
@@ -154,6 +158,7 @@ class ChopraModel(torch.nn.Module):
         super(ChopraModel, self).__init__()
         input_shape = X.shape[1]
         g_layers = networklayers
+        self.epsilon = torch.tensor([0.001]).to(torch.float32).to('cuda:0')
         c_layers = networklayers
         if isinstance(networklayers[0], list):
             # this means user has specified different layers
@@ -190,7 +195,9 @@ class ChopraModel(torch.nn.Module):
     def forward(self, input1, input2):
         e1 = self.forward_G(input1)
         e2 = self.forward_G(input2)
-        #absdiff = _torch_abs(e1, e2)
+        #absdiff = torch.abs(e1-e2)
+        #len = absdiff.shape[1]
         # absdiff = _torch_abs2(e1 - e2)
-        l2dist = torch_euc_dist(e1, e2)
+        l2dist = torch_euc_dist(e1, e2, self.epsilon)
         return l2dist
+        #return torchabsdiff
