@@ -63,6 +63,13 @@ class ChopraTrainer(pl.LightningModule):
         self.colmap = colmap
         self.device = device
 
+    def loadFromCheckpointFile(self, filename):
+        checkpoint = torch.load(filename)
+        self.loadFromStateDict(checkpoint.state_dict)
+
+    def loadFromStateDict(self, state_dict):
+        self.load_state(state_dict)
+
     def forward(self, input1, input2):
         return self.model.forward(input1, input2)
 
@@ -158,7 +165,7 @@ class ChopraModel(torch.nn.Module):
         super(ChopraModel, self).__init__()
         input_shape = X.shape[1]
         g_layers = networklayers
-        self.epsilon = torch.tensor([0.001]).to(torch.float32).to('cuda:0')
+        self.epsilon = torch.tensor([0.0000000001]).to(torch.float32).to('cuda:0')
         c_layers = networklayers
         if isinstance(networklayers[0], list):
             # this means user has specified different layers
@@ -183,7 +190,7 @@ class ChopraModel(torch.nn.Module):
         self.inner_output = torch.nn.Linear(in_features=input_shape,
                                             out_features=Y.shape[1])
 
-        self.relu = torch.nn.ReLU()
+        self.relu = torch.nn.LeakyReLU()
         self.sigm = torch.nn.Sigmoid()
 
     def forward_G(self, x):
@@ -198,6 +205,6 @@ class ChopraModel(torch.nn.Module):
         #absdiff = torch.abs(e1-e2)
         #len = absdiff.shape[1]
         # absdiff = _torch_abs2(e1 - e2)
-        l2dist = torch_euc_dist(e1, e2, self.epsilon)
+        l2dist = torch.norm(e1-e2,p=1,dim=1)#torch_euc_dist(e1, e2, self.epsilon)
         return l2dist
         #return torchabsdiff

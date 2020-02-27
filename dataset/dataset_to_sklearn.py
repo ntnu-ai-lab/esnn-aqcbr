@@ -29,7 +29,7 @@ class SKLearnDataset():
         self.colnames = colnames
         self.target_names = target_names
         self.targetcolnames = targetcolnames
-        tmp = list(itertools.product(targetcolnames,target_names))
+        tmp = list(itertools.product(targetcolnames, target_names))
         self.actual_target_cols = []
         for tup in tmp:
             self.actual_target_cols.append(f"{tup[0]}_{tup[1]}")
@@ -40,6 +40,10 @@ class SKLearnDataset():
 
     #def __getattribute__(self, key):
     #    return object.myGetAttribute(key)
+
+    def setData(self, newdata):
+        self.datacontent = newdata
+        self.df = pd.DataFrame(data=self.datacontent, columns=self.colnames)
 
     def containsNonNumericalCols(self):
         for col in self.dataset.datasetInfo["cols"]:
@@ -101,8 +105,15 @@ class SKLearnDataset():
         dfc = self.df.copy()
         df2 = dfc[self.actual_target_cols]
         dfc["class"] = df2.idxmax(1)
-        dfc = dfc.drop(self.actual_target_cols,axis=1)
+        dfc = dfc.drop(self.actual_target_cols, axis=1)
         return dfc
+
+    def getSplits(self, n_splits):
+        kfold = StratifiedKFold(n_splits=n_splits, shuffle=True)
+        stratified_fold_generator = kfold.split(self.getFeatures(),
+                                                self.getTargets())
+        return stratified_fold_generator
+
 
 def makeembeddings(categorical_vars, df):
     """

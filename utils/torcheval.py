@@ -11,6 +11,38 @@ import torch
 import os
 import time
 from sklearn.metrics import matthews_corrcoef
+from scipy.stats import pearsonr
+import seaborn as sns
+
+def getpearsons(df, col1, col2):
+    labelarr = df.as_matrix(columns=col1).squeeze()
+    newarr = np.zeros_like(labelarr)
+    for i in range(0,labelarr.shape[0]):
+        newarr[i] = int(labelarr[i] == "weatherhindrance_1.0")
+
+    effectarr = df.as_matrix(columns=col2).squeeze()
+    pc = pearsonr(effectarr, newarr)
+    return pc
+def remap(x):
+    if '_1.0' in x:
+        return 'failure'
+    return 'success'
+def pairplot(dsl, output, k):
+    labelcols = ["class"]
+    wanteddatacols = ["wind speed", "wind from direction", "wind effect"]
+    df = dsl.unhotify()
+    df = df.rename(columns={'wind_speed':'wind speed', 'wind_from_direction': 'wind from direction', 'wind_effect':'wind effect'})
+    # 'weatherhindrance_1.0':'failure', 'weatherhindrance_0.0':'success'})
+
+    df['class'] = df['class'].apply(lambda x: remap(x))
+
+    ax = sns.pairplot(df, vars = wanteddatacols, hue="class")
+
+    pc = getpearsons(df,labelcols,["wind effect"])
+    print(f"pearsonscorr: {pc[0]} , {pc[1]}")
+    ax.savefig(f"{output}.pdf", format="pdf", bbox_inches='tight')
+    return df
+
 
 def runevaler(datasetname, epochs, model, torchevaler, evalfunc,
               networklayers=[13, 13], lr=0.02, dropoutrate=0.5,
@@ -24,6 +56,18 @@ def runevaler(datasetname, epochs, model, torchevaler, evalfunc,
         device = "cuda:0"
     d = Dataset(datasetname)
     dsl, colmap, stratified_fold_generator = fromDataSetToSKLearn(d, True, n_splits=5)
+
+    data = dsl.getFeatures()
+    target = dsl.getTargets()
+
+    datasetinfo = dsl.dataset.datasetInfo
+    if "augmentTrainingData" in datasetinfo:
+        func = datasetinfo["augmentTrainingData"]
+        data, target = func(data, target)
+        dsl.setData(np.concatenate((data, target), axis=1))
+        #train_data, train_target = func(train_data, train_target)
+        # test_data, test_target = func(test_data, test_target)
+
     data = dsl.getFeatures()
     target = dsl.getTargets()
     train, test = next(stratified_fold_generator)
@@ -33,11 +77,11 @@ def runevaler(datasetname, epochs, model, torchevaler, evalfunc,
 
     train_data = data[train]
     train_target = target[train]
-    datasetinfo = dsl.dataset.datasetInfo
-    if "augmentTrainingData" in datasetinfo:
-        func = datasetinfo["augmentTrainingData"]
-        train_data, train_target = func(train_data, train_target)
-        test_data, test_target = func(test_data, test_target)
+
+    #print the data dist..
+    pairplot(dsl,
+             filenamepostfix+"pairplot", 10)
+
     batchsize = test_data.shape[0]*train_data.shape[0]
 
     sys = model(None, train_data, train_target, validation_func=evalfunc,
@@ -63,9 +107,12 @@ def runevaler(datasetname, epochs, model, torchevaler, evalfunc,
                          train_target=train_target, test_data=test_data,
                          test_target=test_target, colmap=colmap)
     t0 = time.time()
-    torchmodels, \
-        jitmodels = evaler.myeval(sys, epochs,
-                                  sys.opt, sys.loss, device)
+    model, \
+        torchmodels, \
+        jitmodels,\
+        best_model,\
+        losses = evaler.myeval(sys, epochs,
+                                   sys.opt, sys.loss, device, filenamepostfix)
     t1 = time.time()
     diff = t1-t0
     print(f"spent {diff} time training {diff/epochs} per epoch")
@@ -86,7 +133,7 @@ def runevaler(datasetname, epochs, model, torchevaler, evalfunc,
     print(f"errdistvec: {errdistvec}")
     print(f"truedistvec: {truedistvec}")
     print(f"MCC: {matthews_corrcoef(ires,ipred)}")
-    return sys, test_data, evaler
+    return model, dsl, train, test,  evaler, best_model, losses
 
 
 class TorchEvaler():
@@ -139,20 +186,28 @@ class TorchEvaler():
         return loss
 
 
-    def myeval(self, model, epochs, optim, criterion, device):
+    def myeval(self, model, epochs, optim, criterion, device, datalabel=""):
         batch_size = self.train_data.shape[0]*self.test_data.shape[0]
         self.trainerio.model = model
         lastbest = 1
         torchmodels = []
         jitmodels = []
+        losses = []
+        eloss = []
         for epoch in range(epochs):
             #idx = torch.randperm(self.x1s.nelement())
             optim.zero_grad()
             loss = self.evalepoch(model, criterion, optim)
             loss.backward()
+            lossc = loss.clone()
+            tloss = lossc.detach().cpu().numpy().squeeze()
+            losses.append({'epoch': epoch, 'label': f'{datalabel}_train', 'signal': float(tloss)})
             optim.step()
             self.trainerio.current_epoch = epoch
             self.trainerio.global_step = epoch
+            print('Epoch [%d/%d], loss: %.4f,'
+                  % (epoch, epochs, loss.data))
+
             if (epoch+1)%self.validate_on_k == 0:
                 res, errdistvec, truedistvec, \
                     combineddata, pred_vec = self.evalfunc(model,
@@ -165,6 +220,7 @@ class TorchEvaler():
                                                            colmap=self.colmap,
                                                            device=device)
                 val_loss = 1.0-np.sum(res)/len(res)
+                losses.append({'epoch': epoch, 'label': f'{datalabel}.val', 'signal': val_loss})
                 if val_loss < lastbest:
                     old_loss = lastbest
                     lastbest = val_loss
@@ -172,6 +228,7 @@ class TorchEvaler():
                     from collections import OrderedDict
                     import pickle
                     copyed_model = pickle.loads(pickle.dumps(model))
+                    best_model = pickle.loads(pickle.dumps(model))
                     best_model_state_dict = {k: v.to('cpu') for k, v in copyed_model.state_dict().items()}
                     best_model_state_dict = OrderedDict(best_model_state_dict)
                     copyed_model.load_state_dict(best_model_state_dict)
@@ -185,9 +242,7 @@ class TorchEvaler():
                 tensorboard_logs = {'val_loss': val_loss}
                 metrics = {'val_loss': val_loss, 'lg': tensorboard_logs}
                 self.modelcheckpoint.on_epoch_end(epoch, metrics)
-
-            #print('Epoch [%d/%d], loss: %.4f,'
-            #      % (epoch, epochs, loss.data))
+        return model, torchmodels, jitmodels, best_model, losses
 
     def loadData(self, sklearndataset, trainidx):
         self.data, \

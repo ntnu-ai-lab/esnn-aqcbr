@@ -83,6 +83,13 @@ class ESNNIrisTestExport(unittest.TestCase):
         d = Dataset("opsitu")
         dsl, colmap, stratified_fold_generator = fromDataSetToSKLearn(d, True, n_splits=5)
         df = dsl.df
+        datasetinfo = dsl.dataset.datasetInfo
+        target = dsl.getTargets()
+        features = dsl.getFeatures()
+        func = datasetinfo["augmentTrainingData"]
+        new_features, new_target = func(features, target)
+        newdata =  np.concatenate((new_features,new_target),axis=1)
+        dsl.setData(newdata)
         df3 = df.idxmax(1)
         df2 = df[["weatherhindrance_1.0", "weatherhindrance_0.0"]]
         df["class"] = df2.idxmax(1)
