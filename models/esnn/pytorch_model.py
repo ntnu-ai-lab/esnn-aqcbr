@@ -40,7 +40,7 @@ class ESNNModel(torch.nn.Module):
 
             self.C.append(torch.nn.Linear(in_features=input_shape,
                                           out_features=networklayers[i]))
-            self.C.append(torch.nn.Dropout(dropoutrate))
+            #self.C.append(torch.nn.Dropout(dropoutrate))
             input_shape = networklayers[i]
 
         self.last_C = torch.nn.Linear(in_features=input_shape,

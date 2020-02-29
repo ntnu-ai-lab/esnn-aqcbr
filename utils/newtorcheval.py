@@ -45,9 +45,9 @@ def pairplot(dsl, output, k):
     return df
 
 
-def runevaler(datasetname, epochs, model, torchevaler, evalfunc,
-              networklayers=[13, 13], lr=0.02, dropoutrate=0.5,
-              validate_on_k=10, filenamepostfix="", n_splits=5, n=5):
+def runevaler(datasetname, epochs, models, torchevalers, evalfuncs,
+              networklayers, lrs, dropoutrates,
+              validate_on_k=10, filenamepostfixes=[], n_splits=5, n=5):
     #print("evaling model: ")
     #model.summarize(model,mode="full")
     device = "cpu"
@@ -63,8 +63,8 @@ def runevaler(datasetname, epochs, model, torchevaler, evalfunc,
     data = dsl.getFeatures()
     target = dsl.getTargets()
 #print the data dist..
-    pairplot(dsl,
-             filenamepostfix+"pairplot", 10)
+    #pairplot(dsl,
+    #         filenamepostfix+"pairplot", 10)
 
     datasetinfo = dsl.dataset.datasetInfo
     if "augmentTrainingData" in datasetinfo:
@@ -76,15 +76,17 @@ def runevaler(datasetname, epochs, model, torchevaler, evalfunc,
 
     data = dsl.getFeatures()
     target = dsl.getTargets()
-    tlossmean = np.zeros((epochs, n))
-    vlossmean = np.zeros((int(epochs/validate_on_k), n))
+    tlossmean = [np.zeros((epochs, n)) for filname in filenamepostfixes]
+    trainedmodels = [[] for filname in filenamepostfixes]
+    vlossmean = [np.zeros((int(epochs/validate_on_k), n)) for filname in filenamepostfixes]
+    validatedmodels = [[] for filname in filenamepostfixes]
     for i in range(0, n):
         thisk = 0
-        tlossdata = np.zeros((epochs, n_splits))
-        vlossdata = np.zeros((int(epochs/validate_on_k), n_splits))
+        tlossdata = [np.zeros((epochs, n_splits)) for filname in filenamepostfixes]
+        vlossdata = [np.zeros((int(epochs/validate_on_k), n_splits)) for filname in filenamepostfixes]
         stratified_fold_generator = dsl.getSplits(n_splits=n_splits)
         for train, test in stratified_fold_generator:
-            #train, test = next(stratified_fold_generator)
+            ec = 0
             thisk = thisk +1
             test_data = data[test]
             test_target = target[test]
@@ -92,77 +94,79 @@ def runevaler(datasetname, epochs, model, torchevaler, evalfunc,
             train_data = data[train]
             train_target = target[train]
 
-            batchsize = test_data.shape[0]*train_data.shape[0]
+            for torchevaler in torchevalers:
+                #train, test = next(stratified_fold_generator)
 
-            sys = model(None, train_data, train_target, validation_func=evalfunc,
-                        train_data=train_data, train_target=train_target,
-                        test_data=test_data, test_target=test_target,
-                        colmap=colmap, device=device,
-                        networklayers=networklayers, lr=lr,
-                        dropoutrate=dropoutrate)
-            sys.cuda(0)
-            rootdir = os.getcwd()
-            filename = rootdir+"train-"+filenamepostfix+str(os.getpid())
-            checkpoint_callback = ModelCheckpoint(
-                filepath=filename,
-                verbose=True,
-                monitor='val_loss',
-                mode='min',
-                prefix=''
-            )
-            evaler = torchevaler(dsl, train,
-                                 modelcheckpoint=checkpoint_callback,
-                                 validate_on_k=validate_on_k,
-                                 evalfunc=evalfunc, train_data=train_data,
-                                 train_target=train_target, test_data=test_data,
-                                 test_target=test_target, colmap=colmap)
-            t0 = time.time()
-            tmodel, \
-            torchmodels, \
-            jitmodels,\
-            best_model,\
-            losses, \
-            tlosses, \
-            vlosses = evaler.myeval(sys, epochs,
-                                    sys.opt, sys.loss, device, filenamepostfix)
-            tlossdata[:, thisk-1] = np.asarray(tlosses)
-            vlossdata[:, thisk-1] = np.asarray(vlosses)
-            t1 = time.time()
-            diff = t1-t0
-            print(f"spent {diff} time training {diff/epochs} per epoch")
-        vlossmean[:,i] = np.mean(vlossdata, axis=1)
-        tlossmean[:,i] = np.mean(tlossdata, axis=1)
+                batchsize = test_data.shape[0]*train_data.shape[0]
+
+                sys = models[ec](None, train_data, train_target, validation_func=evalfuncs[ec],
+                                 train_data=train_data, train_target=train_target,
+                                 test_data=test_data, test_target=test_target,
+                                 colmap=colmap, device=device,
+                                 networklayers=networklayers[ec], lr=lrs[ec],
+                                 dropoutrate=dropoutrates[ec])
+                sys.cuda(0)
+                rootdir = os.getcwd()
+                filename = rootdir+"train-"+filenamepostfixes[ec]+str(os.getpid())
+                checkpoint_callback = ModelCheckpoint(
+                    filepath=filename,
+                    verbose=True,
+                    monitor='val_loss',
+                    mode='min',
+                    prefix=''
+                )
+                evaler = torchevalers[ec](dsl, train,
+                                          modelcheckpoint=checkpoint_callback,
+                                          validate_on_k=validate_on_k,
+                                          evalfunc=evalfuncs[ec], train_data=train_data,
+                                          train_target=train_target, test_data=test_data,
+                                          test_target=test_target, colmap=colmap)
+                t0 = time.time()
+                tmodel, \
+                    torchmodels, \
+                    jitmodels,\
+                    best_model,\
+                    losses, \
+                    tlosses, \
+                    vlosses = evaler.myeval(sys, epochs,
+                                            sys.opt, sys.loss, device, filenamepostfixes[ec])
+                trainedmodels[ec].append(tmodel)
+                validatedmodels[ec].append(best_model)
+                tlossdata[ec][:, thisk-1] = np.asarray(tlosses)
+                vlossdata[ec][:, thisk-1] = np.asarray(vlosses)
+                t1 = time.time()
+                diff = t1-t0
+                print(f"spent {diff} time training {diff/epochs} per epoch")
+                ec = ec + 1
+        for evalcounter in range(0, len(filenamepostfixes)):
+            vlossmean[evalcounter][:,i] = np.mean(vlossdata[evalcounter], axis=1)
+            tlossmean[evalcounter][:,i] = np.mean(tlossdata[evalcounter], axis=1)
     dfdata = []
     i = 0
-    for row in tlossmean:
-        i = i + 1
-        for cel in row:
-            dfdata.append({'epoch': i, 'label': f'{filenamepostfix}.train', 'signal': float(cel)})
-    i=0
-    for row in vlossmean:
-        i = i + 1
-        for cel in row:
-            dfdata.append({'epoch': int(i*validate_on_k), 'label': f'{filenamepostfix}.val', 'signal': float(cel)})
+    for evalcounter in range(0,len(filenamepostfixes)):
+        for row in tlossmean[evalcounter]:
+            i = i + 1
+            for cel in row:
+                dfdata.append({'epoch': i,
+                               'label': f'{filenamepostfixes[evalcounter]}.train',
+                               'signal': float(cel)})
+        i=0
+    for evalcounter in range(0,len(filenamepostfixes)):
+        for row in vlossmean[evalcounter]:
+            i = i + 1
+            for cel in row:
+                dfdata.append({'epoch': int(i*validate_on_k),
+                               'label': f'{filenamepostfixes[evalcounter]}.val',
+                               'signal': float(cel)})
+        i=0
+    # for row in vlossmean:
+    #     i = i + 1
+    #     for cel in row:
+    #         dfdata.append({'epoch': int(i*validate_on_k), 'label': f'{filenamepostfix}.val', 'signal': float(cel)})
 
     lossdf = pd.DataFrame(dfdata)
-    res, errdistvec, truedistvec, \
-        combineddata, pred_vec = evalfunc(sys, test_data, test_target, train_data,
-                                          train_target, batch_size=batchsize,
-                                          anynominal=False, colmap=colmap,
-                                          device=device)
 
-    ires = np.asarray(res).astype(int)
-    ires = ires-np.ones(ires.shape)
-    ires = ires*-1
-    ires[ires < 0.1] = -1
-    ipred = np.asarray(pred_vec).astype(int)
-    ipred[ipred > 0.499] = 1
-    ipred[ipred <= 0.499] = -1
-    print(f"{np.sum(res)/len(res)}")
-    print(f"errdistvec: {errdistvec}")
-    print(f"truedistvec: {truedistvec}")
-    print(f"MCC: {matthews_corrcoef(ires,ipred)}")
-    return tmodel, dsl, train, test,  evaler, best_model, losses, lossdf
+    return dsl, trainedmodels, validatedmodels, losses, lossdf
 
 
 class TorchEvaler():

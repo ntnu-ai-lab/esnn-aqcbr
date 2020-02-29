@@ -111,7 +111,7 @@ class SKLearnDataset():
     def getSplits(self, n_splits):
         kfold = StratifiedKFold(n_splits=n_splits, shuffle=True)
         stratified_fold_generator = kfold.split(self.getFeatures(),
-                                                self.getTargets())
+                                                self.unhotify()['class'].values)
         return stratified_fold_generator
 
 
