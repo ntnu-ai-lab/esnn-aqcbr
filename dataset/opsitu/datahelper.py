@@ -7,7 +7,7 @@ import random
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 
-def balancetraining(training_data, training_target):
+def balancetraining(training_data, training_target, removecovarea=True):
     """This function finds random failures, augments them and adds them
     to the training data so that it becomes balanced.
 
@@ -31,18 +31,18 @@ def balancetraining(training_data, training_target):
 
     failures = np.where(training_target[:,:] == failure_target)[0][0::2]
     failure_training_data = training_data[failures]
-    slowfailures = np.where(failure_training_data[:,wind_speed_ind] <= 0.9)[0][0::2]
+    #slowfailures = np.where(failure_training_data[:,wind_speed_ind] <= 0.9)[0][0::2]
 
     #delete the slow data.. this is noise
-    training_data = np.delete(training_data, slowfailures, axis=0)
-    training_target = np.delete(training_target, slowfailures, axis=0)
+    #training_data = np.delete(training_data, slowfailures, axis=0)
+    #training_target = np.delete(training_target, slowfailures, axis=0)
 
     failures = np.where(training_target[:,:] == failure_target)[0][0::2]
     ratio = failures.shape[0]/training_data.shape[0]
     print(f"failures: {failures.shape[0]} ratio: {ratio}")
 
     failure_training_data = training_data[failures]
-    fastfailures = np.where(failure_training_data[:,wind_speed_ind] > 0.9)[0][0::2]
+    fastfailures = np.where(failure_training_data[:,wind_speed_ind] > 0.95)[0][0::2]
 
     # failures = failures & slowdata
 

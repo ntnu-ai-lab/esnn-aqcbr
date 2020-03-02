@@ -1,8 +1,6 @@
 from dataset.dataset_to_sklearn import fromDataSetToSKLearn
 import os
-
 from models.type3.chopra import ChopraTrainer
-
 os.environ["CUDA_LAUNCH_BLOCKING"] ="1"
 from models.esnn.pytorch_model import ESNNModel
 from models.esnn.pytorch_trainer import ESNNSystem
@@ -26,14 +24,9 @@ import matplotlib
 #matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import re
-
-def setLateXFonts():
-    matplotlib.rcParams['text.usetex'] = True
-    matplotlib.rcParams['text.latex.unicode'] = True
-    matplotlib.rcParams['mathtext.fontset'] = 'stix'
-    matplotlib.rcParams['font.family'] = 'STIXGeneral'
-
 import pandas as pd
+from utils.plotting import setLateXFonts
+from utils.runutils import str2bool
 
 def makematrixdata(model, data, targets, k, type=0):
     """
@@ -244,30 +237,40 @@ def plotGableOpsitu(lr=0.03, networklayers=[50, 30, 3], dropout=0.05, epochs=200
     return losses, lossdf
 
 import sys
+import argparse
 if __name__ == "__main__":
     lossdfs = []
-
+    parser = argparse.ArgumentParser(description='do expoeriments')
+    parser.add_argument('--epochs', metavar='epochs', type=int,
+                        help='Which epoch to get stats from')
+    parser.add_argument('--prefix', metavar='prefix', type=str,
+                        help='File prefix')
+    parser.add_argument('--removecoverage', metavar='removecoverage', type=str2bool,
+                        help='Remove coverage')
+    args = parser.parse_args()
     dsl, \
         trainedmodels,\
         validatedmodels,\
         losses,\
-        lossdf = runevaler("opsitu", 500, [ESNNSystem, ChopraTrainer, GabelTrainer],
+        lossdf = runevaler("opsitu", args.epochs, [ESNNSystem, ChopraTrainer, GabelTrainer],
                            [TorchEvaler, ChopraTorchEvaler, GabelTorchEvaler],
-                           [eval_dual_ann, eval_dual_ann, eval_gabel_ann],
-                           networklayers=[[40, 6, 3],[40, 6, 3],[40, 6, 3]],
+                           [eval_dual_ann, eval_dual_ann, eval_dual_ann],
+                           networklayers=[[[40,6,4],[40,6,3]],[40, 6, 3],[40, 6, 3]],
                            lrs=[0.08, 0.08, 0.02],
                            dropoutrates=[0.005, 0.005, 0.005],
                            validate_on_k=10, n=5,
-                           filenamepostfixes=["esnn", "chopra", "gabel"])
+                           filenamepostfixes=["esnn", "chopra", "gabel"], removecoverage=args.removecoverage,
+                           prefix=args.prefix)
     #allavgdf = pd.concat(lossdfs)
     plt.clf()
     plt.cla()
     plt.close()
     setLateXFonts()
-    lossdf.to_csv("lossdf.csv")
-    sns_plot = sns.lineplot(x="epoch", y="signal", hue="label", data=lossdf)
+    basefilename = args.prefix+f"result-{args.epochs}e"
+    lossdf.to_csv(basefilename+".csv")
+    sns_plot = sns.lineplot(x="epoch", y="loss", hue="label", data=lossdf)
     plt.show()
     fig = sns_plot.get_figure()
-    fig.savefig("allavg.pdf")
+    fig.savefig(basefilename+".pdf")
 
     sys.exit(0)

@@ -32,7 +32,8 @@ def get_linear_warmup_scheduler(optimizer, num_warmup_steps, last_epoch=-1):
     # config.warmup_steps = 100
 class ESNNSystem(pl.LightningModule):
 
-    def __init__(self, data, X, Y, networklayers=[13, 13],
+    def __init__(self, data=None, X=None, Y=None,
+                 networklayers=[13, 13],
                  lr=1e-4, betas=(0.9, 0.999), eps=1e-07,
                  weight_decay=1e-7, warmup_steps=100,
                  val_check_interval=250,

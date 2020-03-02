@@ -70,7 +70,7 @@ def xentropy_cost(x_target, x_pred):
 class ESNNloss(torch.nn.Module):
 
 
-    def __init__(self, alpha=0.1):
+    def __init__(self, alpha=0.99):
         super(ESNNloss, self).__init__()
         self.alpha = alpha
         self.loss = torch.nn.BCELoss()

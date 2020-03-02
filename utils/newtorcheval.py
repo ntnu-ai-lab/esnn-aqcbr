@@ -47,7 +47,8 @@ def pairplot(dsl, output, k):
 
 def runevaler(datasetname, epochs, models, torchevalers, evalfuncs,
               networklayers, lrs, dropoutrates,
-              validate_on_k=10, filenamepostfixes=[], n_splits=5, n=5):
+              validate_on_k=10, filenamepostfixes=[], n_splits=5,
+              n=5, removecoverage=True, prefix=""):
     #print("evaling model: ")
     #model.summarize(model,mode="full")
     device = "cpu"
@@ -61,7 +62,7 @@ def runevaler(datasetname, epochs, models, torchevalers, evalfuncs,
                                                                   n_splits=n_splits)
 
     data = dsl.getFeatures()
-    target = dsl.getTargets()
+    target = dsl.getTargets(i)
 #print the data dist..
     #pairplot(dsl,
     #         filenamepostfix+"pairplot", 10)
@@ -107,10 +108,10 @@ def runevaler(datasetname, epochs, models, torchevalers, evalfuncs,
                                  dropoutrate=dropoutrates[ec])
                 sys.cuda(0)
                 rootdir = os.getcwd()
-                filename = rootdir+"train-"+filenamepostfixes[ec]+str(os.getpid())
+                filename = rootdir+prefix+f"train-{epochs}e-{removecoverage}rc"+filenamepostfixes[ec]+str(os.getpid())
                 checkpoint_callback = ModelCheckpoint(
                     filepath=filename,
-                    verbose=True,
+                    verbose=False,
                     monitor='val_loss',
                     mode='min',
                     prefix=''
@@ -129,14 +130,19 @@ def runevaler(datasetname, epochs, models, torchevalers, evalfuncs,
                     losses, \
                     tlosses, \
                     vlosses = evaler.myeval(sys, epochs,
-                                            sys.opt, sys.loss, device, filenamepostfixes[ec])
+                                            sys.opt, sys.loss, device,
+                                            datalabel=filenamepostfixes[ec],
+                                            fileprefix=filename)
                 trainedmodels[ec].append(tmodel)
                 validatedmodels[ec].append(best_model)
                 tlossdata[ec][:, thisk-1] = np.asarray(tlosses)
+                lasttloss = tlosses[len(tlosses)-1]
+                lastvloss = vlosses[len(vlosses)-1]
                 vlossdata[ec][:, thisk-1] = np.asarray(vlosses)
                 t1 = time.time()
                 diff = t1-t0
-                print(f"spent {diff} time training {diff/epochs} per epoch")
+                print(f"n:[{i}/{n}] k:[{thisk}/{n_splits}] running {filenamepostfixes[ec]}: {lasttloss} t {lastvloss} v")
+                #print(f"spent {diff} time training {diff/epochs} per epoch")
                 ec = ec + 1
         for evalcounter in range(0, len(filenamepostfixes)):
             vlossmean[evalcounter][:,i] = np.mean(vlossdata[evalcounter], axis=1)
@@ -149,7 +155,7 @@ def runevaler(datasetname, epochs, models, torchevalers, evalfuncs,
             for cel in row:
                 dfdata.append({'epoch': i,
                                'label': f'{filenamepostfixes[evalcounter]}.train',
-                               'signal': float(cel)})
+                               'loss': float(cel)})
         i=0
     for evalcounter in range(0,len(filenamepostfixes)):
         for row in vlossmean[evalcounter]:
@@ -157,7 +163,7 @@ def runevaler(datasetname, epochs, models, torchevalers, evalfuncs,
             for cel in row:
                 dfdata.append({'epoch': int(i*validate_on_k),
                                'label': f'{filenamepostfixes[evalcounter]}.val',
-                               'signal': float(cel)})
+                               'loss': float(cel)})
         i=0
     # for row in vlossmean:
     #     i = i + 1
@@ -205,6 +211,10 @@ class TorchEvaler():
         self.train_target = train_target
         self.test_data = test_data
         self.test_target = test_target
+        self.alldata = np.concatenate((self.train_data,self.test_data), axis=0)
+        self.alltarget = np.concatenate((self.train_target,self.test_target), axis=0)
+        self.firsthalfdata, self.secondhalfdata = np.split(self.alldata,2)
+        self.firsthalftarget, self.secondhalftarget = np.split(self.alltarget,2)
         self.colmap = colmap
 
 
@@ -219,7 +229,8 @@ class TorchEvaler():
         return loss
 
 
-    def myeval(self, model, epochs, optim, criterion, device, datalabel=""):
+    def myeval(self, model, epochs, optim, criterion,
+               device, datalabel="", fileprefix=""):
         batch_size = self.train_data.shape[0]*self.test_data.shape[0]
         self.trainerio.model = model
         lastbest = 1
@@ -235,17 +246,21 @@ class TorchEvaler():
             loss.backward()
             lossc = loss.clone()
             tloss = lossc.detach().cpu().numpy().squeeze()
-            losses.append({'epoch': epoch, 'label': f'{datalabel}.train', 'signal': float(tloss)})
+            losses.append({'epoch': epoch, 'label': f'{datalabel}.train', 'loss': float(tloss)})
             tlosses.append(tloss)
             optim.step()
             self.trainerio.current_epoch = epoch
             self.trainerio.global_step = epoch
-            print('Epoch [%d/%d], loss: %.4f,'
-                  % (epoch, epochs, loss.data))
+            #print('Epoch [%d/%d], loss: %.4f,'
+            #      % (epoch, epochs, loss.data))
 
             if (epoch+1)%self.validate_on_k == 0:
                 res, errdistvec, truedistvec, \
                     combineddata, pred_vec = self.evalfunc(model,
+                                                           # self.firsthalfdata,
+                                                           # self.firsthalftarget,
+                                                           # self.secondhalfdata,
+                                                           # self.secondhalftarget,
                                                            self.test_data,
                                                            self.test_target,
                                                            self.train_data,
@@ -255,7 +270,7 @@ class TorchEvaler():
                                                            colmap=self.colmap,
                                                            device=device)
                 val_loss = 1.0-np.sum(res)/len(res)
-                losses.append({'epoch': epoch, 'label': f'{datalabel}.val', 'signal': val_loss})
+                losses.append({'epoch': epoch, 'label': f'{datalabel}.val', 'loss': val_loss})
                 vlosses.append(val_loss)
                 if val_loss < lastbest:
                     old_loss = lastbest
@@ -272,7 +287,7 @@ class TorchEvaler():
                     smod.eval()
                     smod = smod.cpu()
                     filepath = self.modelcheckpoint.filepath+".pt1"
-                    print(f" Epoch [{epoch}/{epochs}] saving java model to {filepath} new {val_loss} old {old_loss}")
+                    #print(f" Epoch [{epoch}/{epochs}] saving java model to {filepath} new {val_loss} old {old_loss}")
                     smod.save(filepath)
                     jitmodels.append(smod)
                 tensorboard_logs = {'val_loss': val_loss}

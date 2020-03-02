@@ -39,13 +39,13 @@ class ESNNModel(torch.nn.Module):
             #adding dropout with prob dropbout_p
 
             self.C.append(torch.nn.Linear(in_features=input_shape,
-                                          out_features=networklayers[i]))
+                                          out_features=c_layers[i]))
             #self.C.append(torch.nn.Dropout(dropoutrate))
-            input_shape = networklayers[i]
+            input_shape = c_layers[i]
 
         self.last_C = torch.nn.Linear(in_features=input_shape,
                                      out_features=1)
-        self.relu = torch.nn.ReLU()
+        self.relu = torch.nn.LeakyReLU()
         self.sigm = torch.nn.Sigmoid()
 
     def forward_G(self, x):
