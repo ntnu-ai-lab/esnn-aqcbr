@@ -27,6 +27,7 @@ import re
 import pandas as pd
 from utils.plotting import setLateXFonts
 from utils.runutils import str2bool
+from utils.pdutils import stat
 
 def makematrixdata(model, data, targets, k, type=0):
     """
@@ -247,7 +248,13 @@ if __name__ == "__main__":
                         help='File prefix')
     parser.add_argument('--removecoverage', metavar='removecoverage', type=str2bool,
                         help='Remove coverage')
+    parser.add_argument('--n', metavar='n', type=int,
+                        help='n')
     args = parser.parse_args()
+    if not len(sys.argv) > 3:
+        print ("not enough arguments")
+        parser.print_help()
+        sys.exit(1)
     dsl, \
         trainedmodels,\
         validatedmodels,\
@@ -255,10 +262,10 @@ if __name__ == "__main__":
         lossdf = runevaler("opsitu", args.epochs, [ESNNSystem, ChopraTrainer, GabelTrainer],
                            [TorchEvaler, ChopraTorchEvaler, GabelTorchEvaler],
                            [eval_dual_ann, eval_dual_ann, eval_dual_ann],
-                           networklayers=[[[40,6,4],[40,6,3]],[40, 6, 3],[40, 6, 3]],
+                           networklayers=[[[40,6,3],[10,3]],[40, 6, 3],[40, 6, 3]],
                            lrs=[0.08, 0.08, 0.02],
                            dropoutrates=[0.005, 0.005, 0.005],
-                           validate_on_k=10, n=5,
+                           validate_on_k=10, n=args.n,
                            filenamepostfixes=["esnn", "chopra", "gabel"], removecoverage=args.removecoverage,
                            prefix=args.prefix)
     #allavgdf = pd.concat(lossdfs)
@@ -272,5 +279,6 @@ if __name__ == "__main__":
     plt.show()
     fig = sns_plot.get_figure()
     fig.savefig(basefilename+".pdf")
-
+    for method in ["esnn", "chopra", "gabel"]:
+        print(stat(lossdf, args.epochs, method))
     sys.exit(0)

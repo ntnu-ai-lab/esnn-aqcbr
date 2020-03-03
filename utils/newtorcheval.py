@@ -62,16 +62,16 @@ def runevaler(datasetname, epochs, models, torchevalers, evalfuncs,
                                                                   n_splits=n_splits)
 
     data = dsl.getFeatures()
-    target = dsl.getTargets(i)
+    target = dsl.getTargets()
 #print the data dist..
     #pairplot(dsl,
     #         filenamepostfix+"pairplot", 10)
 
     datasetinfo = dsl.dataset.datasetInfo
-    if "augmentTrainingData" in datasetinfo:
-        func = datasetinfo["augmentTrainingData"]
-        data, target = func(data, target)
-        dsl.setData(np.concatenate((data, target), axis=1))
+    # if "augmentTrainingData" in datasetinfo:
+    #     func = datasetinfo["augmentTrainingData"]
+    #     data, target = func(data, target)
+    #     dsl.setData(np.concatenate((data, target), axis=1))
         #train_data, train_target = func(train_data, train_target)
         # test_data, test_target = func(test_data, test_target)
 
@@ -94,6 +94,13 @@ def runevaler(datasetname, epochs, models, torchevalers, evalfuncs,
 
             train_data = data[train]
             train_target = target[train]
+
+            if "augmentTrainingData" in datasetinfo:
+                func = datasetinfo["augmentTrainingData"]
+                train_data, train_target = func(train_data, train_target)
+                #dsl.setData(np.concatenate((ata, target), axis=1))
+
+
 
             for torchevaler in torchevalers:
                 #train, test = next(stratified_fold_generator)
@@ -211,10 +218,10 @@ class TorchEvaler():
         self.train_target = train_target
         self.test_data = test_data
         self.test_target = test_target
-        self.alldata = np.concatenate((self.train_data,self.test_data), axis=0)
-        self.alltarget = np.concatenate((self.train_target,self.test_target), axis=0)
-        self.firsthalfdata, self.secondhalfdata = np.split(self.alldata,2)
-        self.firsthalftarget, self.secondhalftarget = np.split(self.alltarget,2)
+        # self.alldata = np.concatenate((self.train_data,self.test_data), axis=0)
+        # self.alltarget = np.concatenate((self.train_target,self.test_target), axis=0)
+        # self.firsthalfdata, self.secondhalfdata = np.split(self.alldata,2)
+        # self.firsthalftarget, self.secondhalftarget = np.split(self.alltarget,2)
         self.colmap = colmap
 
 

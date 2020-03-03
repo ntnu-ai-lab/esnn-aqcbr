@@ -74,12 +74,14 @@ def makematrixdata(model, data, targets, k, type=0):
             dataline[name2] = (tmpdata[i,i2]-min)/(max-min)
         dfdata.append(dataline)
     ret = pd.DataFrame(dfdata)
-    print(ret.dtypes)
     print(ret.head(2))
     return ret
 
 def plot2heatmap(df, k, annot=True, outputfile=""):
-    plt.figure()
+    plt.clf()
+    plt.cla()
+    plt.close()
+    #plt.figure()
     plt.clf()
     df = df.set_index('name')
 
@@ -106,11 +108,11 @@ def plot2heatmap(df, k, annot=True, outputfile=""):
 
     fig = plt.figure(figsize=(k+1, k))
     #fig.savefig(f"preeverything-{outputfile}")
-    ax1 = plt.subplot2grid((k+1, k), (0, 0), colspan=k-1, rowspan=k-1)
+    ax1 = plt.subplot2grid((k+1, k), (0, 0), colspan=k-1, rowspan=k-1,fig=fig)
     # labe y axis
-    ax2 = plt.subplot2grid((k+1, k), (k-1, 0), colspan=k-1, rowspan=1)
+    ax2 = plt.subplot2grid((k+1, k), (k-1, 0), colspan=k-1, rowspan=1,fig=fig)
     # axis for correct
-    ax21 = plt.subplot2grid((k+1, k), (k, 0), colspan=k-1, rowspan=1)
+    ax21 = plt.subplot2grid((k+1, k), (k, 0), colspan=k-1, rowspan=1,fig=fig)
 
     ret = sns.heatmap(datadf.iloc[:k, :k], ax=ax1, annot=True,
                 cmap="YlGnBu",
@@ -146,15 +148,22 @@ def plot2heatmap(df, k, annot=True, outputfile=""):
     ax2.set_xlabel('')
     ax21.set_ylabel('')
     ax21.set_xlabel('')
-    #plt.show()
-    fig = ax1.get_figure()
-    fig.savefig(f"{outputfile}")
-    fig.savefig(f"post1{outputfile}")
+    import matplotlib._pylab_helpers
+    figures = [manager.canvas.figure
+               for manager in matplotlib._pylab_helpers.Gcf.get_all_fig_managers()]
+    print(figures)
     plt.show()
-    fig.savefig(f"final{outputfile}")
-    plt.clf()
-    plt.cla()
-    plt.close()
+    figures[1].savefig(f"{outputfile}")
+    figures[1].savefig(f"2{outputfile}")
+    # #plt.show()
+    # fig = ax1.get_figure()
+    # fig.savefig(f"{outputfile}")
+    # fig.savefig(f"post1{outputfile}")
+    # plt.show()
+    # fig.savefig(f"final{outputfile}")
+    # plt.clf()
+    # plt.cla()
+    # plt.close()
     #ax21.set_xlim(k, -0.5)
 
     #sns.heatmap(closestdf.transpose().iloc[:,:k],

@@ -42,7 +42,7 @@ def balancetraining(training_data, training_target, removecovarea=True):
     print(f"failures: {failures.shape[0]} ratio: {ratio}")
 
     failure_training_data = training_data[failures]
-    fastfailures = np.where(failure_training_data[:,wind_speed_ind] > 0.95)[0][0::2]
+    fastfailures = np.where(failure_training_data[:,wind_speed_ind] > 0.8)[0][0::2]
 
     # failures = failures & slowdata
 

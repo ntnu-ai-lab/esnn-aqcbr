@@ -21,10 +21,11 @@ import random
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='plot stats')
-    parser.add_argument('--modelpath', metavar='modelpath', type=str,
-                        help='MODELPATH')
-    parser.add_argument('--modeltype', metavar='modeltype', type=str,
-                        help='modeltype')
+    parser.add_argument('--modelpaths', metavar='modelpaths',
+                        type=lambda s: [item for item in s.split(',')],
+                        help='MODELPATHS')
+    parser.add_argument('--modeltypes', metavar='modeltypes',
+                        help='modeltypse', type=lambda s: [item for item in s.split(',')])
     parser.add_argument('--prefix', metavar='prefix', type=str,
                         help='prefix')
     parser.add_argument('--dataset', metavar='dataset', type=str,
@@ -32,6 +33,7 @@ if __name__ == "__main__":
     parser.add_argument('--seed', metavar='seec', type=int,
                         help='seed')
     args = parser.parse_args()
+
     if args.seed is not None:
         print(f"setting seed to {args.seed}")
         torch.manual_seed(args.seed)
@@ -68,27 +70,30 @@ if __name__ == "__main__":
     data = dsl.getFeatures()
     target = dsl.getTargets()
 
-    loadedstate = torch.load(args.modelpath)
 
 
-    if "esnn" in args.modeltype:
-        #model = ESNNModel(X=data,Y=target)
-        model = ESNNSystem(X=data,Y=target, networklayers=[[40, 6 , 4], [40, 6, 3]])
-
-    elif "chopra" in args.modeltype:
-        model = ChopraTrainer(X=data,Y=target, networklayers=[40, 6, 3])
-    elif "gabel" in args.modeltype:
-        model = GabelTrainer(X=data,Y=target, networklayers=[40, 6, 3])
-    #loadedstate = torch.load(args.modelpath)
-    model.load_state_dict(loadedstate['state_dict'])
-    model = model.to('cuda:0')
-    if "esnn" in args.modeltype:
-        df = makematrixdata(model, dsl.getFeatures()[train], dsl.getTargets()[train], 10, type=0)
-    elif "chopra" in args.modeltype:
-        df = makematrixdata(model, dsl.getFeatures()[train], dsl.getTargets()[train], 10, type=2)
-    elif "gabel" in args.modeltype:
-        df = makematrixdata(model, dsl.getFeatures()[train], dsl.getTargets()[train], 10, type=1)
-    df.to_csv(prefix+"-matrixdata.csv")
-    setLateXFonts()
-    plot2heatmap(df, 10, annot=True, outputfile=prefix+"-matrix.pdf")
+    for i in range(0,len(args.modelpaths)):
+        modeltype = args.modeltypes[i]
+        modelpath = args.modelpaths[i]
+        if "esnn" in modeltype:
+            #model = ESNNModel(X=data,Y=target)
+            model = ESNNSystem(X=data,Y=target, networklayers=[[40, 6 , 4], [40, 6, 3]])
+        elif "chopra" in modeltype:
+            model = ChopraTrainer(X=data,Y=target, networklayers=[40, 6, 3])
+        elif "gabel" in modeltype:
+            model = GabelTrainer(data,X=data,Y=target, networklayers=[40, 6, 3])
+        #loadedstate = torch.load(args.modelpath)
+        loadedstate = torch.load(modelpath)
+        model.load_state_dict(loadedstate['state_dict'])
+        model = model.to('cuda:0')
+        df = None
+        if "esnn" in modeltype:
+            df = makematrixdata(model, dsl.getFeatures()[train], dsl.getTargets()[train], 10, type=0)
+        elif "chopra" in modeltype:
+            df = makematrixdata(model, dsl.getFeatures()[train], dsl.getTargets()[train], 10, type=2)
+        elif "gabel" in modeltype:
+            df = makematrixdata(model, dsl.getFeatures()[train], dsl.getTargets()[train], 10, type=1)
+        df.to_csv(prefix+modeltype+"-matrixdata.csv")
+        setLateXFonts()
+        plot2heatmap(df, 10, annot=True, outputfile=prefix+modeltype+"-matrix.pdf")
     sys.exit(0)
