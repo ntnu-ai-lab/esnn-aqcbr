@@ -1,12 +1,12 @@
 import torch
 
 class ESNNModel(torch.nn.Module):
-    def __init__(self, X, Y, networklayers=[13, 13], dropoutrate=0.052):
+    def __init__(self, input_shape, output_shape, networklayers=[13, 13], dropoutrate=0.052):
         """
 
         """
         super(ESNNModel, self).__init__()
-        input_shape = X.shape[1]
+
         g_layers = networklayers
         c_layers = networklayers
         #self.register_backward_hook(self.printgradnorm)
@@ -31,7 +31,7 @@ class ESNNModel(torch.nn.Module):
             input_shape = networklayer
 
         self.inner_output = torch.nn.Linear(in_features=input_shape,
-                                            out_features=Y.shape[1])
+                                            out_features=output_shape)
 
         self.C = torch.nn.ModuleList()
         self.C_size = len(c_layers)

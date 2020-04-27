@@ -74,7 +74,7 @@ def makematrixdata(model, data, targets, k, type=0):
             dataline[name2] = (tmpdata[i,i2]-min)/(max-min)
         dfdata.append(dataline)
     ret = pd.DataFrame(dfdata)
-    print(ret.head(2))
+    #print(ret.head(2))
     return ret
 
 def plot2heatmap(df, k, annot=True, outputfile=""):
@@ -152,6 +152,7 @@ def plot2heatmap(df, k, annot=True, outputfile=""):
     figures = [manager.canvas.figure
                for manager in matplotlib._pylab_helpers.Gcf.get_all_fig_managers()]
     print(figures)
+    plt.tight_layout()
     plt.show()
     figures[1].savefig(f"{outputfile}")
     figures[1].savefig(f"2{outputfile}")

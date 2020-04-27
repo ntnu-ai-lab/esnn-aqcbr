@@ -5,7 +5,7 @@ from utils.torch import ContrastiveLoss, RAdam
 from torch.optim.lr_scheduler import LambdaLR
 from torch.optim import RMSprop
 import numpy as np
-
+from argparse import Namespace
 
 def get_linear_warmup_scheduler(optimizer, num_warmup_steps, last_epoch=-1):
     def lr_lambda(current_step):
@@ -41,8 +41,15 @@ class GabelTrainer(pl.LightningModule):
                  colmap=None, device=None,
                  dropoutrate=0.05):
         super(GabelTrainer, self).__init__()
+        self.inputwidth = X.shape[1]
+        self.outputwidth = Y.shape[1]
+        self.hparams = {'lr':lr, 'networklayers': networklayers,
+                        'dropoutrate':dropoutrate, 'inputwidth': self.inputwidth,
+                        'outputwidth': self.outputwidth}
+        self.hparams = Namespace(**self.hparams)
         # not the best model...
-        self.model = GabelModel(X, Y, networklayers, dropoutrate).to(torch.float32)
+        self.model = GabelModel(self.inputwidth, self.outputwidth,
+                                networklayers, dropoutrate).to(torch.float32)
         self.loss = torch.nn.BCELoss()
         #self.esnnloss = ESNNloss()
         self.train_loader = data
@@ -147,12 +154,12 @@ def torch_euc_dist(t1, t2):
     return torch.sqrt(torch.max(tmp, epsilon))
 
 class GabelModel(torch.nn.Module):
-    def __init__(self, X, Y, networklayers=[13, 13], dropoutrate=0.05):
+    def __init__(self, input_shape, output_shape, networklayers=[13, 13], dropoutrate=0.05):
         """
 
         """
         super(GabelModel, self).__init__()
-        input_shape = X.shape[1]*2
+        input_shape = input_shape*2
         layers = networklayers
         if isinstance(networklayers[0], list):
             layers = networklayers[0]

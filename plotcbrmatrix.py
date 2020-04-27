@@ -34,6 +34,11 @@ if __name__ == "__main__":
                         help='seed')
     args = parser.parse_args()
 
+    if not len(sys.argv) > 3:
+        print ("not enough arguments")
+        parser.print_help()
+        sys.exit(1)
+
     if args.seed is not None:
         print(f"setting seed to {args.seed}")
         torch.manual_seed(args.seed)
@@ -77,10 +82,15 @@ if __name__ == "__main__":
         modelpath = args.modelpaths[i]
         if "esnn" in modeltype:
             #model = ESNNModel(X=data,Y=target)
-            model = ESNNSystem(X=data,Y=target, networklayers=[[40, 6 , 4], [40, 6, 3]])
+            # best
+            #model = ESNNSystem(X=data,Y=target, networklayers=[[40, 6 , 3], [3]])
+            # replicate
+            model = ESNNSystem(X=data,Y=target, networklayers=[[40, 6 , 4], [40, 6, 1]])
         elif "chopra" in modeltype:
+            #model = ChopraTrainer(X=data, Y=target, networklayers=[40, 6, 3])
             model = ChopraTrainer(X=data,Y=target, networklayers=[40, 6, 3])
         elif "gabel" in modeltype:
+            #model = GabelTrainer(data,X=data,Y=target, networklayers=[40, 6, 3])
             model = GabelTrainer(data,X=data,Y=target, networklayers=[40, 6, 3])
         #loadedstate = torch.load(args.modelpath)
         loadedstate = torch.load(modelpath)

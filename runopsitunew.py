@@ -262,7 +262,7 @@ if __name__ == "__main__":
         lossdf = runevaler("opsitu", args.epochs, [ESNNSystem, ChopraTrainer, GabelTrainer],
                            [TorchEvaler, ChopraTorchEvaler, GabelTorchEvaler],
                            [eval_dual_ann, eval_dual_ann, eval_dual_ann],
-                           networklayers=[[[40,6,3],[10,3]],[40, 6, 3],[40, 6, 3]],
+                           networklayers=[[[40,6,3],[3]],[40, 6, 3],[40, 6, 3]],
                            lrs=[0.08, 0.08, 0.02],
                            dropoutrates=[0.005, 0.005, 0.005],
                            validate_on_k=10, n=args.n,

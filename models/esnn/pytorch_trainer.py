@@ -7,7 +7,7 @@ from utils.torch import ContrastiveLoss, RAdam, ESNNloss
 from torch.optim.lr_scheduler import LambdaLR
 from torch.optim import RMSprop
 import numpy as np
-
+from argparse import Namespace
 def get_linear_warmup_scheduler(optimizer, num_warmup_steps, last_epoch=-1):
     def lr_lambda(current_step):
         if current_step < num_warmup_steps:
@@ -45,7 +45,13 @@ class ESNNSystem(pl.LightningModule):
                  dropoutrate=0.2):
         super(ESNNSystem, self).__init__()
         # not the best model...
-        self.model = ESNNModel(X, Y, networklayers, dropoutrate).to(torch.float32)
+        self.inputwidth = X.shape[1]
+        self.outputwidth = Y.shape[1]
+        self.hparams = {'lr': lr, 'networklayers': networklayers,
+                        'dropoutrate': dropoutrate, 'inputwidth': self.inputwidth,
+                        'outputwidth': self.outputwidth}
+        self.hparams = Namespace(**self.hparams)
+        self.model = ESNNModel(self.inputwidth, self.outputwidth, networklayers, dropoutrate).to(torch.float32)
         self.loss = ESNNloss() #ContrastiveLoss()
         #self.esnnloss = ESNNloss()
         self.train_loader = data

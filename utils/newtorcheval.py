@@ -113,9 +113,10 @@ def runevaler(datasetname, epochs, models, torchevalers, evalfuncs,
                                  colmap=colmap, device=device,
                                  networklayers=networklayers[ec], lr=lrs[ec],
                                  dropoutrate=dropoutrates[ec])
+
                 sys.cuda(0)
                 rootdir = os.getcwd()
-                filename = rootdir+prefix+f"train-{epochs}e-{removecoverage}rc"+filenamepostfixes[ec]+str(os.getpid())
+                filename = rootdir+prefix+f"train-{epochs}e-{thisk}k-{i+1}n-{removecoverage}rc"+filenamepostfixes[ec]+str(os.getpid())
                 checkpoint_callback = ModelCheckpoint(
                     filepath=filename,
                     verbose=False,

@@ -6,6 +6,7 @@ from utils.torch import ContrastiveLoss, RAdam
 from torch.optim.lr_scheduler import LambdaLR
 from torch.optim import RMSprop
 import numpy as np
+from argparse import Namespace
 
 def get_linear_warmup_scheduler(optimizer, num_warmup_steps, last_epoch=-1):
     def lr_lambda(current_step):
@@ -42,7 +43,13 @@ class ChopraTrainer(pl.LightningModule):
                  dropoutrate=0.2):
         super(ChopraTrainer, self).__init__()
         # not the best model...
-        self.model = ChopraModel(X, Y, networklayers,
+        self.inputwidth = X.shape[1]
+        self.outputwidth = Y.shape[1]
+        self.hparams = {'lr':lr, 'networklayers': networklayers,
+                        'dropoutrate':dropoutrate, 'inputwidth': self.inputwidth,
+                        'outputwidth': self.outputwidth}
+        self.hparams = Namespace(**self.hparams)
+        self.model = ChopraModel(self.inputwidth, self.outputwidth, networklayers,
                                  dropoutrate).to(torch.float32)
         self.loss = torch.nn.BCEWithLogitsLoss(size_average=True)
         #self.loss = ContrastiveLoss()
@@ -158,12 +165,12 @@ def torch_euc_dist(t1, t2, epsilon):
 
 
 class ChopraModel(torch.nn.Module):
-    def __init__(self, X, Y, networklayers=[13, 13], dropoutrate=0.05):
+    def __init__(self, input_shape, output_shape, networklayers=[13, 13], dropoutrate=0.05):
         """
 
         """
         super(ChopraModel, self).__init__()
-        input_shape = X.shape[1]
+        #input_shape = X.shape[1]
         g_layers = networklayers
         self.epsilon = torch.tensor([0.0000000001]).to(torch.float32).to('cuda:0')
         c_layers = networklayers
@@ -188,7 +195,7 @@ class ChopraModel(torch.nn.Module):
             input_shape = networklayer
 
         self.inner_output = torch.nn.Linear(in_features=input_shape,
-                                            out_features=Y.shape[1])
+                                            out_features=output_shape)
 
         self.relu = torch.nn.LeakyReLU()
         self.sigm = torch.nn.Sigmoid()
