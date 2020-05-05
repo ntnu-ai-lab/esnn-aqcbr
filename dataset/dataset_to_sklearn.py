@@ -58,13 +58,13 @@ class SKLearnDataset():
                 ret.append(col["name"])
         return ret
 
-    def myGetAttribute(self, key):
-        if key is "target":
-            return self.getTargets()
-        elif key is "data":
-            return self.getFeatures()
-        else:
-            return object.__dict__(self, key)
+    # def myGetAttribute(self, key):
+    #     if key is "target":
+    #         return self.getTargets()
+    #     elif key is "data":
+    #         return self.getFeatures()
+    #     else:
+    #         return object.__dict__(self, key)
 
     def __getattr__(self, key):
         return self.myGetAttribute(key)

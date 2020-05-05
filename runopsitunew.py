@@ -2,32 +2,36 @@ from dataset.dataset_to_sklearn import fromDataSetToSKLearn
 import os
 from models.type3.chopra import ChopraTrainer
 os.environ["CUDA_LAUNCH_BLOCKING"] ="1"
-from models.esnn.pytorch_model import ESNNModel
-from models.esnn.pytorch_trainer import ESNNSystem
-from dataset.dataset import Dataset
-from utils.torch import TorchSKDataset
-from pytorch_lightning import Trainer
-from models.eval import eval_dual_ann, eval_gabel_ann
-from torch.utils.data import DataLoader
-import numpy as np
-from models.esnn.tests.pytorch_esnn_test import ESNNTest
-from pytorch_lightning.callbacks import ModelCheckpoint
-from utils.newtorcheval import TorchEvaler, runevaler, ChopraTorchEvaler, GabelTorchEvaler
-import torch
-from models.type2.gabel import GabelTrainer
+import argparse
 import os
+import re
+import sys
 import time
-from sklearn.metrics import matthews_corrcoef
+
 import numpy as np
 import seaborn as sns
 import matplotlib
-#matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import re
 import pandas as pd
+import torch
+from pytorch_lightning import Trainer
+from pytorch_lightning.callbacks import ModelCheckpoint
+from sklearn.metrics import matthews_corrcoef
+from utils.torch import TorchSKDataset
+
+from dataset.dataset import Dataset
+from models.esnn.pytorch_model import ESNNModel
+from models.esnn.pytorch_trainer import ESNNSystem
+from models.esnn.tests.pytorch_esnn_test import ESNNTest
+from models.eval import eval_dual_ann, eval_gabel_ann
+from models.type2.gabel import GabelTrainer
+from torch.utils.data import DataLoader
+from utils.newtorcheval import (ChopraTorchEvaler, GabelTorchEvaler,
+    TorchEvaler, runevaler)
+from utils.pdutils import stat
 from utils.plotting import setLateXFonts
 from utils.runutils import str2bool
-from utils.pdutils import stat
+
 
 def makematrixdata(model, data, targets, k, type=0):
     """
@@ -41,7 +45,7 @@ def makematrixdata(model, data, targets, k, type=0):
     """
     model.eval()
     dsize = data.shape[0]
-    tmpdata = np.zeros((k,k))
+    tmpdata = np.zeros((k, k))
     max = 0
     maxperrow = 0
     min = 1
@@ -54,26 +58,36 @@ def makematrixdata(model, data, targets, k, type=0):
         maxperrow = 0
         for i2 in range(0, k):
             if type == 0:
-                t = model(torch.from_numpy(data[i]).to(torch.float32).to('cuda:0'),
-                          torch.from_numpy(data[i2]).to(torch.float32).to('cuda:0'))[0]
+                t = model(torch.from_numpy(data[i])
+                          .to(torch.float32).to('cuda:0'),
+                          torch.from_numpy(data[i2])
+                          .to(torch.float32).to('cuda:0'))[0]
             elif type == 1:
-                t = model(torch.from_numpy(data[i]).to(torch.float32).to('cuda:0').unsqueeze(dim=0),
-                          torch.from_numpy(data[i2]).to(torch.float32).to('cuda:0').unsqueeze(dim=0))
+                t = model(torch.from_numpy(data[i])
+                          .to(torch.float32).to('cuda:0')
+                          .unsqueeze(dim=0),
+                          torch.from_numpy(data[i2])
+                          .to(torch.float32).to('cuda:0')
+                          .unsqueeze(dim=0))
             else:
-                t = model(torch.from_numpy(data[i]).to(torch.float32).to('cuda:0').unsqueeze(dim=0),
-                          torch.from_numpy(data[i2]).to(torch.float32).to('cuda:0').unsqueeze(dim=0))
+                t = model(torch.from_numpy(data[i])
+                          .to(torch.float32).to('cuda:0')
+                          .unsqueeze(dim=0),
+                          torch.from_numpy(data[i2])
+                          .to(torch.float32).to('cuda:0')
+                          .unsqueeze(dim=0))
             diff = t.cpu().detach().numpy().squeeze()
-            tmpdata[i,i2] = 1 - diff
-            if tmpdata[i,i2] > max:
-                max = tmpdata[i,i2]
+            tmpdata[i, i2] = 1 - diff
+            if tmpdata[i, i2] > max:
+                max = tmpdata[i, i2]
 
             if tmpdata[i, i2] > maxperrow and i != i2:
                 maxperrow = tmpdata[i, i2]
                 highesti2 = i2
                 highestname = f"opsitu{i2+1}"
 
-            if tmpdata[i,i2] < min:
-                min = tmpdata[i,i2]
+            if tmpdata[i, i2] < min:
+                min = tmpdata[i, i2]
 
         highesti2s.append(highesti2)
         highestnames.append(highestname)
@@ -218,27 +232,31 @@ def plotCHOPRAOpsitu(lr=0.2, networklayers=[50, 30, 3], dropout=0.05, epochs=200
     plot2heatmap(df, 10, annot=True, outputfile="training-chopra-matrix.pdf")
     return losses, lossdf
 
-def plotGableOpsitu(lr=0.03, networklayers=[50, 30, 3], dropout=0.05, epochs=200, validate_on_k=10, n=5):
+
+def plotGableOpsitu(lr=0.03, networklayers=[50, 30, 3], 
+                    dropout=0.05, epochs=200, validate_on_k=10, n=5):
     model, \
-    dsl, \
-    train, \
-    test, \
-    evaler, \
-    best_model, \
-    losses, \
-    lossdf = runevaler("opsitu", epochs, GabelTrainer, GabelTorchEvaler,
-              eval_gabel_ann, networklayers=networklayers,
-              lr=lr, dropoutrate=dropout, validate_on_k=validate_on_k, n=n,
-              filenamepostfix="gabel")
-    df1 = makematrixdata(best_model, dsl.getFeatures()[train], dsl.getTargets()[train], 10, type=1)
+        dsl, \
+        train, \
+        test, \
+        evaler, \
+        best_model, \
+        losses, \
+        lossdf = runevaler("opsitu", epochs, GabelTrainer, GabelTorchEvaler,
+                           eval_gabel_ann, networklayers=networklayers,
+                           lr=lr, dropoutrate=dropout, 
+                           validate_on_k=validate_on_k, n=n,
+                           filenamepostfix="gabel")
+    df1 = makematrixdata(best_model, dsl.getFeatures()[train], 
+                         dsl.getTargets()[train], 10, type=1)
     plot2heatmap(df1, 10, annot=True, outputfile="gabel-matrix.pdf")
 
-    df2 = makematrixdata(model, dsl.getFeatures()[train], dsl.getTargets()[train], 10, type=1)
+    df2 = makematrixdata(model, dsl.getFeatures()[train], 
+                         dsl.getTargets()[train], 10, type=1)
     plot2heatmap(df2, 10, annot=True, outputfile="training-gabel-matrix.pdf")
     return losses, lossdf
 
-import sys
-import argparse
+
 if __name__ == "__main__":
     lossdfs = []
     parser = argparse.ArgumentParser(description='do expoeriments')
@@ -250,6 +268,8 @@ if __name__ == "__main__":
                         help='Remove coverage')
     parser.add_argument('--n', metavar='n', type=int,
                         help='n')
+    parser.add_argument('--augmentData', metavar='augmentData', type=str2bool,
+                        help='augmentData')
     args = parser.parse_args()
     if not len(sys.argv) > 3:
         print ("not enough arguments")
@@ -259,15 +279,19 @@ if __name__ == "__main__":
         trainedmodels,\
         validatedmodels,\
         losses,\
-        lossdf = runevaler("opsitu", args.epochs, [ESNNSystem, ChopraTrainer, GabelTrainer],
+        lossdf,\
+        knnres = runevaler("opsitu", args.epochs, [ESNNSystem, ChopraTrainer, GabelTrainer],
                            [TorchEvaler, ChopraTorchEvaler, GabelTorchEvaler],
                            [eval_dual_ann, eval_dual_ann, eval_dual_ann],
-                           networklayers=[[[40,6,3],[3]],[40, 6, 3],[40, 6, 3]],
+                           networklayers=[[[80,12,6],[6]],[80, 12, 6],[80, 12, 6]],
                            lrs=[0.08, 0.08, 0.02],
                            dropoutrates=[0.005, 0.005, 0.005],
                            validate_on_k=10, n=args.n,
-                           filenamepostfixes=["esnn", "chopra", "gabel"], removecoverage=args.removecoverage,
-                           prefix=args.prefix)
+                           filenamepostfixes=["esnn", "chopra", "gabel"], 
+                           removecoverage=args.removecoverage,
+                           prefix=args.prefix,
+                           augmentData=args.augmentData)
+    print(f"knnresuls: {np.mean(knnres)} {np.std(knnres)}")
     #allavgdf = pd.concat(lossdfs)
     plt.clf()
     plt.cla()
@@ -279,6 +303,7 @@ if __name__ == "__main__":
     plt.show()
     fig = sns_plot.get_figure()
     fig.savefig(basefilename+".pdf")
-    for method in ["esnn", "chopra", "gabel"]:
-        print(stat(lossdf, args.epochs, method))
+    methodlist = ["esnn", "chopra", "gabel"]
+    for method in methodlist:
+        print(f"{method} :{stat(lossdf, args.epochs, method)}")
     sys.exit(0)

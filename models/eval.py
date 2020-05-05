@@ -274,8 +274,9 @@ def _eval_dual_ann(model, test_data, test_target, train_data, train_target,
     combineddata[:,(train_data.shape[1] * 2)+(2*test_target.shape[1]):(train_data.shape[1] * 2)+(2*test_target.shape[1])+1] = pred_vec
     #sortecombineddata = combineddata[combineddata[:,combineddata.shape[1]-1].argsort()]
     #now we have the similarities, we need to sort on the network output
-    errdistvec = dict()
-    truedistvec = dict()
+    # TODO: fix for more than two possible classes!
+    errdistvec = {'0':0,'1':0}
+    truedistvec = {'0':0,'1':0}
     errvec = list()
     sel_pred_vec = list()
     heh = 0

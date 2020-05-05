@@ -7,6 +7,7 @@ from dataset.dataset import Dataset
 import numpy as np
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.trainer.training_io import TrainerIOMixin
+from models.type1 import sim_def_lin
 import torch
 import os
 import time
@@ -48,7 +49,7 @@ def pairplot(dsl, output, k):
 def runevaler(datasetname, epochs, models, torchevalers, evalfuncs,
               networklayers, lrs, dropoutrates,
               validate_on_k=10, filenamepostfixes=[], n_splits=5,
-              n=5, removecoverage=True, prefix=""):
+              n=5, removecoverage=True, prefix="", augmentData=True):
     #print("evaling model: ")
     #model.summarize(model,mode="full")
     device = "cpu"
@@ -81,11 +82,19 @@ def runevaler(datasetname, epochs, models, torchevalers, evalfuncs,
     trainedmodels = [[] for filname in filenamepostfixes]
     vlossmean = [np.zeros((int(epochs/validate_on_k), n)) for filname in filenamepostfixes]
     validatedmodels = [[] for filname in filenamepostfixes]
+    knndata = []
+    truedata = [np.zeros((1, n)) for filname in filenamepostfixes]
+    errdata = [np.zeros((1, n)) for filname in filenamepostfixes]
     for i in range(0, n):
         thisk = 0
         tlossdata = [np.zeros((epochs, n_splits)) for filname in filenamepostfixes]
         vlossdata = [np.zeros((int(epochs/validate_on_k), n_splits)) for filname in filenamepostfixes]
+        knnresults = 0
         stratified_fold_generator = dsl.getSplits(n_splits=n_splits)
+        splittruedata = [np.zeros((1, n_splits)) for filname in filenamepostfixes]
+        spliterrdata = [np.zeros((1, n_splits)) for filname in filenamepostfixes]
+        kerrratios = 0
+        ktrueratios = 0
         for train, test in stratified_fold_generator:
             ec = 0
             thisk = thisk +1
@@ -94,20 +103,21 @@ def runevaler(datasetname, epochs, models, torchevalers, evalfuncs,
 
             train_data = data[train]
             train_target = target[train]
-
-            if "augmentTrainingData" in datasetinfo:
+            batchsize = test_data.shape[0] * train_data.shape[0]
+            if "augmentTrainingData" in datasetinfo and augmentData:
                 func = datasetinfo["augmentTrainingData"]
                 train_data, train_target = func(train_data, train_target)
                 #dsl.setData(np.concatenate((ata, target), axis=1))
-
-
-
+            onennres = sim_def_lin(None, test_data, test_target,
+                                   train_data, train_target,
+                                   batchsize, False, None)
+            knnresults += np.sum(onennres)/len(onennres)
+            
             for torchevaler in torchevalers:
                 #train, test = next(stratified_fold_generator)
 
-                batchsize = test_data.shape[0]*train_data.shape[0]
-
-                sys = models[ec](None, train_data, train_target, validation_func=evalfuncs[ec],
+                sys = models[ec](None, train_data, train_target,
+                                 validation_func=evalfuncs[ec],
                                  train_data=train_data, train_target=train_target,
                                  test_data=test_data, test_target=test_target,
                                  colmap=colmap, device=device,
@@ -116,7 +126,10 @@ def runevaler(datasetname, epochs, models, torchevalers, evalfuncs,
 
                 sys.cuda(0)
                 rootdir = os.getcwd()
-                filename = rootdir+prefix+f"train-{epochs}e-{thisk}k-{i+1}n-{removecoverage}rc"+filenamepostfixes[ec]+str(os.getpid())
+                filename = rootdir + prefix \
+                    + f"train-{epochs}e-{thisk}k-{i+1}n-{removecoverage}rc"\
+                    + filenamepostfixes[ec]+str(os.getpid())
+                print(f"filename: {filename}")
                 checkpoint_callback = ModelCheckpoint(
                     filepath=filename,
                     verbose=False,
@@ -137,21 +150,54 @@ def runevaler(datasetname, epochs, models, torchevalers, evalfuncs,
                     best_model,\
                     losses, \
                     tlosses, \
-                    vlosses = evaler.myeval(sys, epochs,
+                    vlosses,\
+                    besterrdict,\
+                    besttruedict = evaler.myeval(sys, epochs,
                                             sys.opt, sys.loss, device,
                                             datalabel=filenamepostfixes[ec],
                                             fileprefix=filename)
+                biggest=0
+                biggestkey=None
+                dictsum = 0
+                for k,v in  besttruedict.items():
+                    if v > biggest:
+                        biggest = v
+                        biggestkey = k
+                    dictsum += v
+                trueratio = biggest/dictsum
+                biggest = 0
+                biggestkey = None
+                dictsum = 0
+                for k, v in besterrdict.items():
+                    if v > biggest:
+                        biggest = v
+                        biggestkey = k
+                    dictsum += v
+                errratio = biggest / dictsum
+                ktrueratios += trueratio
+                kerrratios += errratio
+
+
                 trainedmodels[ec].append(tmodel)
                 validatedmodels[ec].append(best_model)
                 tlossdata[ec][:, thisk-1] = np.asarray(tlosses)
                 lasttloss = tlosses[len(tlosses)-1]
                 lastvloss = vlosses[len(vlosses)-1]
                 vlossdata[ec][:, thisk-1] = np.asarray(vlosses)
+                splittruedata[ec][thisk] = trueratio
+                spliterrdata[ec][thisk] = errratio
                 t1 = time.time()
                 diff = t1-t0
                 print(f"n:[{i}/{n}] k:[{thisk}/{n_splits}] running {filenamepostfixes[ec]}: {lasttloss} t {lastvloss} v")
                 #print(f"spent {diff} time training {diff/epochs} per epoch")
                 ec = ec + 1
+                
+            ktrueratios = ktrueratios / n_splits
+            kerrratios = kerrratios / n_splits
+            truedata[]
+        knnresults = knnresults/n_splits
+        knndata.append(knnresults)
+
         for evalcounter in range(0, len(filenamepostfixes)):
             vlossmean[evalcounter][:,i] = np.mean(vlossdata[evalcounter], axis=1)
             tlossmean[evalcounter][:,i] = np.mean(tlossdata[evalcounter], axis=1)
@@ -179,8 +225,7 @@ def runevaler(datasetname, epochs, models, torchevalers, evalfuncs,
     #         dfdata.append({'epoch': int(i*validate_on_k), 'label': f'{filenamepostfix}.val', 'signal': float(cel)})
 
     lossdf = pd.DataFrame(dfdata)
-
-    return dsl, trainedmodels, validatedmodels, losses, lossdf
+    return dsl, trainedmodels, validatedmodels, losses, lossdf,knndata
 
 
 class TorchEvaler():
@@ -247,6 +292,8 @@ class TorchEvaler():
         losses = []
         tlosses = []
         vlosses = []
+        besterrdict = None
+        besttruedict = None
         for epoch in range(epochs):
             #idx = torch.randperm(self.x1s.nelement())
             optim.zero_grad()
@@ -295,6 +342,8 @@ class TorchEvaler():
                     smod.eval()
                     smod = smod.cpu()
                     filepath = self.modelcheckpoint.filepath+".pt1"
+                    besterrdict = errdistvec
+                    besttruedict = truedistvec
                     #print(f" Epoch [{epoch}/{epochs}] saving java model to {filepath} new {val_loss} old {old_loss}")
                     smod.save(filepath)
                     jitmodels.append(smod)
@@ -302,7 +351,7 @@ class TorchEvaler():
                 metrics = {'val_loss': val_loss, 'lg': tensorboard_logs}
                 self.modelcheckpoint.on_epoch_end(epoch, metrics)
         return model, torchmodels, jitmodels, best_model, \
-            losses, tlosses, vlosses
+            losses, tlosses, vlosses, besterrdict, besttruedict
 
     def loadData(self, sklearndataset, trainidx):
         self.data, \
