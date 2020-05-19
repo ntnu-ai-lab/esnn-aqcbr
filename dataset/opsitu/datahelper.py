@@ -73,4 +73,7 @@ def balancetraining(training_data, training_target, removecovarea=True):
     # need to reshuffle arrays ..
     assert len(training_data) == len(training_target)
     p = np.random.permutation(len(training_data))
+    failures = np.where(training_target[:,:] == failure_target)[0][0::2]
+    ratio = failures.shape[0]/training_data.shape[0]
+    print(f"NEW failures: {failures.shape[0]} ratio: {ratio}")
     return training_data[p], training_target[p]

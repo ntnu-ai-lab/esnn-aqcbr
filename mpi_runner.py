@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import random
 import os
-from utils.logging import LoggingUtility
+from utils.esnnlogging import LoggingUtility
 
 
 def main(mpirank, mpisize, mpicomm):

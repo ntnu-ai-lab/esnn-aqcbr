@@ -2,8 +2,9 @@ from dataset.makeTrainingData import makeDualSharedArchData, makeGabelTrainingDa
 
 from dataset.dataset_to_sklearn import fromDataSetToSKLearn
 import os
-os.environ["CUDA_LAUNCH_BLOCKING"] ="1"
+os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 from dataset.dataset import Dataset
+from sklearn.metrics import roc_auc_score
 import numpy as np
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.trainer.training_io import TrainerIOMixin
@@ -15,6 +16,7 @@ from sklearn.metrics import matthews_corrcoef
 from scipy.stats import pearsonr
 import seaborn as sns
 import pandas as pd
+from models.eval import roc
 
 def getpearsons(df, col1, col2):
     labelarr = df.as_matrix(columns=col1).squeeze()
@@ -25,22 +27,28 @@ def getpearsons(df, col1, col2):
     effectarr = df.as_matrix(columns=col2).squeeze()
     pc = pearsonr(effectarr, newarr)
     return pc
+
+
 def remap(x):
     if '_1.0' in x:
         return 'failure'
     return 'success'
+
+
 def pairplot(dsl, output, k):
     labelcols = ["class"]
     wanteddatacols = ["wind speed", "wind from direction", "wind effect"]
     df = dsl.unhotify()
-    df = df.rename(columns={'wind_speed':'wind speed', 'wind_from_direction': 'wind from direction', 'wind_effect':'wind effect'})
+    df = df.rename(columns={'wind_speed': 'wind speed',
+                            'wind_from_direction': 'wind from direction',
+                            'wind_effect': 'wind effect'})
     # 'weatherhindrance_1.0':'failure', 'weatherhindrance_0.0':'success'})
 
     df['class'] = df['class'].apply(lambda x: remap(x))
 
-    ax = sns.pairplot(df, vars = wanteddatacols, hue="class")
+    ax = sns.pairplot(df, vars=wanteddatacols, hue="class")
 
-    pc = getpearsons(df,labelcols,["wind effect"])
+    pc = getpearsons(df, labelcols, ["wind effect"])
     print(f"pearsonscorr: {pc[0]} , {pc[1]}")
     ax.savefig(f"{output}.pdf", format="pdf", bbox_inches='tight')
     return df
@@ -79,20 +87,23 @@ def runevaler(datasetname, epochs, models, torchevalers, evalfuncs,
     data = dsl.getFeatures()
     target = dsl.getTargets()
     tlossmean = [np.zeros((epochs, n)) for filname in filenamepostfixes]
+
     trainedmodels = [[] for filname in filenamepostfixes]
     vlossmean = [np.zeros((int(epochs/validate_on_k), n)) for filname in filenamepostfixes]
+    aucmean = [np.zeros((int(epochs/validate_on_k), n)) for filname in filenamepostfixes]
     validatedmodels = [[] for filname in filenamepostfixes]
     knndata = []
-    truedata = [np.zeros((1, n)) for filname in filenamepostfixes]
-    errdata = [np.zeros((1, n)) for filname in filenamepostfixes]
+    truedata = [np.squeeze(np.zeros((1, n)),axis=0) for filname in filenamepostfixes]
+    errdata = [np.squeeze(np.zeros((1, n)),axis=0) for filname in filenamepostfixes]
     for i in range(0, n):
         thisk = 0
         tlossdata = [np.zeros((epochs, n_splits)) for filname in filenamepostfixes]
+        aucvaldata = [np.zeros((int(epochs/validate_on_k),n_splits)) for filname in filenamepostfixes]
         vlossdata = [np.zeros((int(epochs/validate_on_k), n_splits)) for filname in filenamepostfixes]
         knnresults = 0
         stratified_fold_generator = dsl.getSplits(n_splits=n_splits)
-        splittruedata = [np.zeros((1, n_splits)) for filname in filenamepostfixes]
-        spliterrdata = [np.zeros((1, n_splits)) for filname in filenamepostfixes]
+        splittruedata = [np.squeeze(np.zeros((1, n_splits))) for filname in filenamepostfixes]
+        spliterrdata = [np.squeeze(np.zeros((1, n_splits))) for filname in filenamepostfixes]
         kerrratios = 0
         ktrueratios = 0
         for train, test in stratified_fold_generator:
@@ -129,7 +140,7 @@ def runevaler(datasetname, epochs, models, torchevalers, evalfuncs,
                 filename = rootdir + prefix \
                     + f"train-{epochs}e-{thisk}k-{i+1}n-{removecoverage}rc"\
                     + filenamepostfixes[ec]+str(os.getpid())
-                print(f"filename: {filename}")
+                #print(f"filename: {filename}")
                 checkpoint_callback = ModelCheckpoint(
                     filepath=filename,
                     verbose=False,
@@ -144,6 +155,7 @@ def runevaler(datasetname, epochs, models, torchevalers, evalfuncs,
                                           train_target=train_target, test_data=test_data,
                                           test_target=test_target, colmap=colmap)
                 t0 = time.time()
+                methodlabel = filenamepostfixes[ec]
                 tmodel, \
                     torchmodels, \
                     jitmodels,\
@@ -151,10 +163,11 @@ def runevaler(datasetname, epochs, models, torchevalers, evalfuncs,
                     losses, \
                     tlosses, \
                     vlosses,\
+                    aucvals, \
                     besterrdict,\
                     besttruedict = evaler.myeval(sys, epochs,
                                             sys.opt, sys.loss, device,
-                                            datalabel=filenamepostfixes[ec],
+                                            datalabel=methodlabel,
                                             fileprefix=filename)
                 biggest=0
                 biggestkey=None
@@ -184,23 +197,28 @@ def runevaler(datasetname, epochs, models, torchevalers, evalfuncs,
                 lasttloss = tlosses[len(tlosses)-1]
                 lastvloss = vlosses[len(vlosses)-1]
                 vlossdata[ec][:, thisk-1] = np.asarray(vlosses)
-                splittruedata[ec][thisk] = trueratio
-                spliterrdata[ec][thisk] = errratio
+                aucvaldata[ec][:, thisk - 1] = np.asarray(aucvals)
+                splittruedata[ec][thisk-1] = trueratio
+                spliterrdata[ec][thisk-1] = errratio
                 t1 = time.time()
                 diff = t1-t0
-                print(f"n:[{i}/{n}] k:[{thisk}/{n_splits}] running {filenamepostfixes[ec]}: {lasttloss} t {lastvloss} v")
+                print(f"n:[{i+1}/{n}] k:[{thisk}/{n_splits}] running {filenamepostfixes[ec]}: {lasttloss} t {lastvloss} v")
                 #print(f"spent {diff} time training {diff/epochs} per epoch")
                 ec = ec + 1
                 
-            ktrueratios = ktrueratios / n_splits
-            kerrratios = kerrratios / n_splits
-            truedata[]
+            # ktrueratios = ktrueratios / n_splits
+            # kerrratios = kerrratios / n_splits
+            #truedata[]
         knnresults = knnresults/n_splits
         knndata.append(knnresults)
 
         for evalcounter in range(0, len(filenamepostfixes)):
             vlossmean[evalcounter][:,i] = np.mean(vlossdata[evalcounter], axis=1)
+            aucmean[evalcounter][:, i] = np.mean(aucvaldata[evalcounter], axis=1)
             tlossmean[evalcounter][:,i] = np.mean(tlossdata[evalcounter], axis=1)
+            truedata[evalcounter][i] = np.mean(splittruedata[evalcounter], axis=0)
+            errdata[evalcounter][i] = np.mean(spliterrdata[evalcounter], axis=0)
+
     dfdata = []
     i = 0
     for evalcounter in range(0,len(filenamepostfixes)):
@@ -219,13 +237,32 @@ def runevaler(datasetname, epochs, models, torchevalers, evalfuncs,
                                'label': f'{filenamepostfixes[evalcounter]}.val',
                                'loss': float(cel)})
         i=0
+
+    for evalcounter in range(0,len(filenamepostfixes)):
+        for row in aucmean[evalcounter]:
+            i = i + 1
+            for cel in row:
+                dfdata.append({'epoch': int(i*validate_on_k),
+                               'label': f'{filenamepostfixes[evalcounter]}.auc',
+                               'loss': float(cel)})
+        i=0
+
+    ratiodata = []
+    for evalcounter in range(0,len(filenamepostfixes)):
+        for i in range(0,n):
+            ratiodata.append({'n:': i, 'method': f'{filenamepostfixes[evalcounter]}',
+                              'type': 'true', 'value': truedata[evalcounter][i]})
+            ratiodata.append({'n:': i, 'method': f'{filenamepostfixes[evalcounter]}',
+                              'type': 'err', 'value': errdata[evalcounter][i]})
     # for row in vlossmean:
     #     i = i + 1
     #     for cel in row:
     #         dfdata.append({'epoch': int(i*validate_on_k), 'label': f'{filenamepostfix}.val', 'signal': float(cel)})
 
     lossdf = pd.DataFrame(dfdata)
-    return dsl, trainedmodels, validatedmodels, losses, lossdf,knndata
+    ratiodf = pd.DataFrame(ratiodata)
+    return dsl, trainedmodels, validatedmodels, losses, \
+                             lossdf, knndata, ratiodf
 
 
 class TorchEvaler():
@@ -292,8 +329,10 @@ class TorchEvaler():
         losses = []
         tlosses = []
         vlosses = []
+        aucvals = []
         besterrdict = None
         besttruedict = None
+w
         for epoch in range(epochs):
             #idx = torch.randperm(self.x1s.nelement())
             optim.zero_grad()
@@ -309,7 +348,7 @@ class TorchEvaler():
             #print('Epoch [%d/%d], loss: %.4f,'
             #      % (epoch, epochs, loss.data))
 
-            if (epoch+1)%self.validate_on_k == 0:
+            if (epoch+1) % self.validate_on_k == 0:
                 res, errdistvec, truedistvec, \
                     combineddata, pred_vec = self.evalfunc(model,
                                                            # self.firsthalfdata,
@@ -324,9 +363,23 @@ class TorchEvaler():
                                                            anynominal=False,
                                                            colmap=self.colmap,
                                                            device=device)
+
+                
+                labelwidth = self.test_target.shape[1]
+                label_indexes=[(combineddata.shape[1]-2)-2*labelwidth,
+                               (combineddata.shape[1]-2)-labelwidth]
+                df = roc(combineddata, combineddata.shape[1]-2, label_width=labelwidth,
+                         label_indexes=[(combineddata.shape[1]-2)-2*labelwidth,
+                            (combineddata.shape[1]-2)-labelwidth],
+                         start=0.01, stop=0.8, delta=0.05)
+                y_true = pred_vec
+                y_scores = pred_vec
+                roc_auc_score(y_true, y_scores)
+                auc = np.trapz(y=df.tpr.values,x=df.fpr.values)
                 val_loss = 1.0-np.sum(res)/len(res)
-                losses.append({'epoch': epoch, 'label': f'{datalabel}.val', 'loss': val_loss})
+                losses.append({'epoch': epoch, 'label': f'{datalabel}.val', 'loss': val_loss, 'auc': auc})
                 vlosses.append(val_loss)
+                aucvals.append(auc)
                 if val_loss < lastbest:
                     old_loss = lastbest
                     lastbest = val_loss
@@ -351,7 +404,7 @@ class TorchEvaler():
                 metrics = {'val_loss': val_loss, 'lg': tensorboard_logs}
                 self.modelcheckpoint.on_epoch_end(epoch, metrics)
         return model, torchmodels, jitmodels, best_model, \
-            losses, tlosses, vlosses, besterrdict, besttruedict
+            losses, tlosses, vlosses, aucvals, besterrdict, besttruedict
 
     def loadData(self, sklearndataset, trainidx):
         self.data, \

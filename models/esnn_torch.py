@@ -4,8 +4,6 @@ from torch.utils.data import DataLoader
 from torchvision.datasets import MNIST
 from torchvision import transforms
 
-class esnn()
-
 def esnn(o_X, o_Y, X, Y, datasetname, regression=False,
          epochs=2000, val_split=0, shuffle=True,
          batch_size=32, optimizer=None, onehot=True,

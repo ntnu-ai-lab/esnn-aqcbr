@@ -30,6 +30,20 @@ import numpy as np
 #                             overwrite=True,
 #                             include_optimizer=True)
 
+
+####
+# AUC loss for torch based on https://towardsdatascience.com/explicit-auc-maximization-70beef6db14e
+###
+# dense = L.Dense(units=1)
+# activations = dense(input_layer)
+# predictions = tf.sigmoid(activations)
+# # This is the new cost function.
+# cost = - tf.reduce_mean(tf.sigmoid(activations @ tf.transpose(activations)) * np.maximum(y @ np.ones(y.shape).T - np.ones(y.shape) @ y.T, 0))
+# optimizer = tf.train.GradientDescentOptimizer(learning_rate)
+# training_op = optimizer.minimize(cost)
+#def auc_loss()
+
+
 def cross_entropy(y_hat, y):
     logsoftmax = torch.nn.LogSoftmax()
     return torch.mean(torch.sum(- y * logsoftmax(y_hat), 1))
@@ -78,15 +92,19 @@ class ESNNloss(torch.nn.Module):
         self.alpha = torch.from_numpy(np.asarray([alpha])).to('cuda:0')
         self.ha = ((1-self.alpha)/2).to('cuda:0')
 
-
+    """
+    y_hat is the output of C(G(x),G(y)) - the distance/similarity estimated by the model
+    y is the true distance/sim
+    y_x,y_x_hat is the class labels and outputs respectively for the classification outputs
+    """
     def forward(self, y_hat, y,
                 y1, y2, y1_hat, y2_hat):
 
         syhat = y_hat#.squeeze()
         sy = y#.squeeze()
         loss = (self.alpha)*self.loss(syhat, sy)
-        loss = loss + (self.ha * self.xloss(y1_hat, torch.max(y1,1)[1])) + \
-            (self.ha * self.xloss(y2_hat, torch.max(y2,1)[1]))
+        loss = loss + (self.ha * self.xloss(y1_hat, torch.max(y1, 1)[1])) + \
+            (self.ha * self.xloss(y2_hat, torch.max(y2, 1)[1]))
         if torch.isnan(loss):
             print("is naan")
         return loss

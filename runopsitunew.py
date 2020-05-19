@@ -28,7 +28,7 @@ from models.type2.gabel import GabelTrainer
 from torch.utils.data import DataLoader
 from utils.newtorcheval import (ChopraTorchEvaler, GabelTorchEvaler,
     TorchEvaler, runevaler)
-from utils.pdutils import stat
+from utils.pdutils import stat, ratiostat, aucstat
 from utils.plotting import setLateXFonts
 from utils.runutils import str2bool
 
@@ -276,21 +276,22 @@ if __name__ == "__main__":
         parser.print_help()
         sys.exit(1)
     dsl, \
-        trainedmodels,\
-        validatedmodels,\
-        losses,\
-        lossdf,\
-        knnres = runevaler("opsitu", args.epochs, [ESNNSystem, ChopraTrainer, GabelTrainer],
-                           [TorchEvaler, ChopraTorchEvaler, GabelTorchEvaler],
-                           [eval_dual_ann, eval_dual_ann, eval_dual_ann],
-                           networklayers=[[[80,12,6],[6]],[80, 12, 6],[80, 12, 6]],
-                           lrs=[0.08, 0.08, 0.02],
-                           dropoutrates=[0.005, 0.005, 0.005],
-                           validate_on_k=10, n=args.n,
-                           filenamepostfixes=["esnn", "chopra", "gabel"], 
-                           removecoverage=args.removecoverage,
-                           prefix=args.prefix,
-                           augmentData=args.augmentData)
+    trainedmodels, \
+    validatedmodels, \
+    losses, \
+    lossdf, \
+    knnres, \
+    ratiodf = runevaler("opsitu", args.epochs, [ESNNSystem, ChopraTrainer, GabelTrainer],
+                        [TorchEvaler, ChopraTorchEvaler, GabelTorchEvaler],
+                        [eval_dual_ann, eval_dual_ann, eval_dual_ann],
+                        networklayers=[[[80,12,6],[6]],[80, 12, 2],[80, 12, 2]],
+                        lrs=[0.08, 0.08, 0.02],
+                        dropoutrates=[0.005, 0.005, 0.005],
+                        validate_on_k=10, n=args.n,
+                        filenamepostfixes=["esnn", "chopra", "gabel"],
+                        removecoverage=args.removecoverage,
+                        prefix=args.prefix,
+                        augmentData=args.augmentData)
     print(f"knnresuls: {np.mean(knnres)} {np.std(knnres)}")
     #allavgdf = pd.concat(lossdfs)
     plt.clf()
@@ -305,5 +306,7 @@ if __name__ == "__main__":
     fig.savefig(basefilename+".pdf")
     methodlist = ["esnn", "chopra", "gabel"]
     for method in methodlist:
-        print(f"{method} :{stat(lossdf, args.epochs, method)}")
+        ratiostats = ratiostat(ratiodf, method)
+        print(f"{method} : {stat(lossdf, args.epochs, method)} auc: {aucstat(lossdf, args.epochs, method)} "
+              f"(errratio: {ratiostats[0]} trueratio: {ratiostats[1]})")
     sys.exit(0)

@@ -153,6 +153,8 @@ def auc(matrix, threshold, distindex, label_width, label_indexes):
     for i in range(0, matrix.shape[0]):
         left_label = matrix[i, label_indexes[0]:label_indexes[0]+label_width]
         right_label = matrix[i, label_indexes[1]:label_indexes[1]+label_width]
+        if np.mean(matrix[:, distindex]) < 0.002:
+            print("hummm")
         if matrix[i, distindex] < threshold:
             if np.all(left_label == right_label):
                 tp += 1
@@ -388,7 +390,23 @@ def sillouettescore(model, features, targets):
     print(f"used {delta} time for sillouettescore")
     return sscore
 
+
 def evalSortedsubset(sortedsubset, index, datahape, targetshape):
+    """This function calculates ROC/AUC and F2
+
+    Args:
+       matrix the datamatrix
+       distindex the column index of the distance in the matrix
+       true_label the true label
+       label_index index of the label in the data martix
+       start start point for the ROC curve
+       stop stop point for the ROC curve
+       delta delta of how much to move for each iteration in the ROC curve
+
+    Returns: ROC/AUC and F2
+    
+    """
+
     # find out how many of calculated distances is
     # equal to the lowest distance (sortedsubset[index,-2])
     # if more than one we have a tie..
