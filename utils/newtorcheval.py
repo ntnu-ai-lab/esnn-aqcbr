@@ -16,7 +16,8 @@ from sklearn.metrics import matthews_corrcoef
 from scipy.stats import pearsonr
 import seaborn as sns
 import pandas as pd
-from models.eval import roc
+# from models.eval import roc
+from utils.torch import torch_auc_roc
 
 def getpearsons(df, col1, col2):
     labelarr = df.as_matrix(columns=col1).squeeze()
@@ -53,6 +54,8 @@ def pairplot(dsl, output, k):
     ax.savefig(f"{output}.pdf", format="pdf", bbox_inches='tight')
     return df
 
+
+# TODO: this function needs to be split up!
 
 def runevaler(datasetname, epochs, models, torchevalers, evalfuncs,
               networklayers, lrs, dropoutrates,
@@ -316,7 +319,11 @@ class TorchEvaler():
         y_hat, inner_output1, inner_output2 = model(self.x1s, self.x2s)
         loss = criterion(y_hat, self.labels, self.y1,
                          self.y2, inner_output1, inner_output2)
-        return loss
+        y_hatc = y_hat.clone()
+        y_hatc = y_hatc.detach().cpu().numpy()
+        rocs = roc_auc_score(self.labels.cpu().numpy(), y_hatc)
+        #return loss+(2*(1-rocs))
+        return 1.0-rocs
 
 
     def myeval(self, model, epochs, optim, criterion,
@@ -332,7 +339,7 @@ class TorchEvaler():
         aucvals = []
         besterrdict = None
         besttruedict = None
-w
+
         for epoch in range(epochs):
             #idx = torch.randperm(self.x1s.nelement())
             optim.zero_grad()
@@ -350,7 +357,7 @@ w
 
             if (epoch+1) % self.validate_on_k == 0:
                 res, errdistvec, truedistvec, \
-                    combineddata, pred_vec = self.evalfunc(model,
+                    combineddata, y_pred, y_true = self.evalfunc(model,
                                                            # self.firsthalfdata,
                                                            # self.firsthalftarget,
                                                            # self.secondhalfdata,
@@ -368,18 +375,18 @@ w
                 labelwidth = self.test_target.shape[1]
                 label_indexes=[(combineddata.shape[1]-2)-2*labelwidth,
                                (combineddata.shape[1]-2)-labelwidth]
-                df = roc(combineddata, combineddata.shape[1]-2, label_width=labelwidth,
-                         label_indexes=[(combineddata.shape[1]-2)-2*labelwidth,
-                            (combineddata.shape[1]-2)-labelwidth],
-                         start=0.01, stop=0.8, delta=0.05)
-                y_true = pred_vec
-                y_scores = pred_vec
-                roc_auc_score(y_true, y_scores)
-                auc = np.trapz(y=df.tpr.values,x=df.fpr.values)
+                # df = roc(combineddata, combineddata.shape[1]-2, label_width=labelwidth,
+                #          label_indexes=[(combineddata.shape[1]-2)-2*labelwidth,
+                #             (combineddata.shape[1]-2)-labelwidth],
+                #          start=0.01, stop=0.8, delta=0.05)
+
+                y_scores = y_pred
+                rocs = roc_auc_score(y_true, y_scores)
+                auc = None#np.trapz(y=df.tpr.values,x=df.fpr.values)
                 val_loss = 1.0-np.sum(res)/len(res)
-                losses.append({'epoch': epoch, 'label': f'{datalabel}.val', 'loss': val_loss, 'auc': auc})
+                losses.append({'epoch': epoch, 'label': f'{datalabel}.val', 'loss': val_loss, 'auc': rocs})
                 vlosses.append(val_loss)
-                aucvals.append(auc)
+                aucvals.append(rocs)
                 if val_loss < lastbest:
                     old_loss = lastbest
                     lastbest = val_loss

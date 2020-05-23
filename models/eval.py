@@ -280,8 +280,9 @@ def _eval_dual_ann(model, test_data, test_target, train_data, train_target,
     errdistvec = {'0':0,'1':0}
     truedistvec = {'0':0,'1':0}
     errvec = list()
-    sel_pred_vec = list()
+    y_pred = list()
     heh = 0
+    y_true = list()
     for i in range(0, test_data.shape[0]):
         #first the select a subset of the array that corresponds to test_data[i] and all of train_data combined
         subset = combineddata[(i*train_data.shape[0]):((i+1)*train_data.shape[0]), 0:(train_data.shape[1]*2)+(test_target.shape[1]*2)+2]
@@ -292,6 +293,7 @@ def _eval_dual_ann(model, test_data, test_target, train_data, train_target,
         err, tpred = evalSortedsubset(sortedsubset, index,
                                train_data.shape[1],
                                test_target.shape[1])
+        y_true.append(int(err))
         true_target_value = sortedsubset[index, (train_data.shape[1] * 2) + test_target.shape[1]:(train_data.shape[1] * 2) + (2 * test_target.shape[1])]
         tv = str(np.where(true_target_value == 1)[0][0])
         if err is False:
@@ -307,13 +309,13 @@ def _eval_dual_ann(model, test_data, test_target, train_data, train_target,
             else:
                 truedistvec[tv] = 1
         errvec.append(err)
-        sel_pred_vec.append(tpred)
+        y_pred.append(tpred)
         #if np.equal(np.rint(this_train_target),np.rint(this_test_target)).all():
         #    errvec.append(1.0)
         #else:
         #    errvec.append(0)
 
-    return errvec, errdistvec, truedistvec, combineddata, sel_pred_vec
+    return errvec, errdistvec, truedistvec, combineddata, y_pred, y_true
 
 
 import operator
@@ -395,24 +397,30 @@ def evalSortedsubset(sortedsubset, index, datahape, targetshape):
     """This function calculates ROC/AUC and F2
 
     Args:
-       matrix the datamatrix
-       distindex the column index of the distance in the matrix
-       true_label the true label
-       label_index index of the label in the data martix
-       start start point for the ROC curve
-       stop stop point for the ROC curve
-       delta delta of how much to move for each iteration in the ROC curve
+       sortedsubset the sorted subset of rows to look through
+       index the index of the lowest or highest (dep on which way it is sorted)
+       datashape the shape of the predicted
+       targetshape the shape of the target
 
-    Returns: ROC/AUC and F2
-    
+
+    Returns:
+        errvec the vector corresponding to true/false at index
+               i according to if the two data point points at i had the same label
+        val    the lowest similarity of found from the query point
+               to any training data point. Corresponding to
+               similarity of i=index in errvec
+
     """
 
     # find out how many of calculated distances is
     # equal to the lowest distance (sortedsubset[index,-2])
     # if more than one we have a tie..
-    sortedsubsettruth = sortedsubset[:,-2] == sortedsubset[index,-2]
+    sortedsubsettruth = sortedsubset[:, -2] == sortedsubset[index, -2]
     # what is the one hot value of the true label at that point..
-    true_target_value = sortedsubset[index, (datahape * 2) + targetshape:(datahape * 2) + (2 * targetshape)]
+    true_target_value = sortedsubset[index,
+                                     (datahape * 2)
+                                     + targetshape:(datahape * 2)
+                                     + (2 * targetshape)]
     # what is the non-one hot value of the true label at that point
     true_target_reverse = np.argmax(true_target_value,axis=0)
     # now we get all the lines where the distance is equally low(est)
@@ -433,21 +441,6 @@ def evalSortedsubset(sortedsubset, index, datahape, targetshape):
             return True, val
         else:
             return False, val
-        #if unique_countsr[tru]
-        #hits = subsetsubset[:, (datahape * 2):(datahape * 2) + targetshape] == true_target_value
-        #hits = np.all(hits,axis=1)
-        #unique2, counts2 = np.unique(hits, return_counts=True)
-        #unique_counts2 = dict(zip(unique2, counts2))
-        # if True not in unique_counts2:
-        #     return False
-        #
-        # #if unique_counts2[True] != subsetsubset.shape[0]:
-        # #    print("stop")
-        #
-        # if False not in unique_counts2 or unique_counts2[True] >= unique_counts2[False]:
-        #     return True
-        # elif unique_counts2[True] < unique_counts2[False]:
-        #     return False
 
     else:
         this_train_target = sortedsubset[index, (datahape * 2):(datahape * 2) + targetshape]

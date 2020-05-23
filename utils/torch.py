@@ -51,6 +51,74 @@ def cross_entropy(y_hat, y):
 def _torch_abs(x1, x2):
     return torch.sqrt(torch.pow(x1-x2, 2))
 
+sent_value = [2]
+sent_value_tensor = torch.FloatTensor(sent_value)
+
+sent_value_zero = [0]
+sent_value_zero_tensor = torch.FloatTensor(sent_value_zero)
+
+sent_value_one = [1]
+sent_value_one_tensor = torch.FloatTensor(sent_value_one)
+
+sent_value_two = [2]
+sent_value_two_tensor = torch.FloatTensor(sent_value_two)
+
+sent_value_three = [3]
+sent_value_three_tensor = torch.FloatTensor(sent_value_three)
+
+def torch_auc_roc(y_pred, y_true, start, stop, delta):
+    """
+
+    """
+    #true_positives = torch.sum(torch.where(y_pred >= .5, 1, 0))
+    #negatives = torch.sum(torch.where(y_pred < .5, 1, 0))
+    
+    thresholds = torch.arange(start, stop, delta)
+    inds = torch.arange(0, thresholds.shape[0])
+    tprs = torch.zeros(thresholds.shape[0], 1)
+    fprs = torch.zeros(thresholds.shape[0], 1)
+
+    for t, i in zip(thresholds, inds):
+        y_pos_thressed = torch.where(y_pred >= t, sent_value_two_tensor, sent_value_zero_tensor)
+        y_neg_thressed = torch.where(y_pred < t, sent_value_two_tensor, sent_value_zero_tensor)
+
+        pos_check = torch.add(y_pos_thressed, y_true)
+        tp = torch.sum(torch.where(pos_check == sent_value_three_tensor, sent_value_one_tensor, sent_value_zero_tensor))
+
+        neg_check = torch.add(y_neg_thressed, y_true)
+        tn_corr = torch.sum(torch.where(neg_check == sent_value_zero_tensor, sent_value_one_tensor, sent_value_zero_tensor))
+
+        fp = torch.sum(torch.where(pos_check == sent_value_two_tensor, sent_value_one_tensor, sent_value_zero_tensor))
+        fn = torch.sum(torch.where(neg_check == sent_value_two_tensor, sent_value_one_tensor, sent_value_zero_tensor))
+        tn = torch.sum(torch.where(neg_check == sent_value_three_tensor, sent_value_one_tensor, sent_value_zero_tensor))
+
+        tprs[i] = tp / (tp+fn)
+        fprs[i] = fp / (fp+tn)
+
+    #for tpr, fpr in zip(tprs, fprs):
+    auc = torch.zeros(1, 1)
+    width = torch.zeros(1, 1)
+    avg_height = torch.zeros(1, 1)
+    for i in range(1, tprs.shape[0]):
+        width = fprs[i]-fprs[i-1]
+        avg_height = (tprs[i]+tprs[i-1])/2.0
+        auc += width*avg_height
+
+    return auc
+
+def torch_auc_roc_mm(y_pred, y_true, start, stop, delta):
+    """
+
+    """
+    true_positives = torch.sum(torch.where(y_pred >= .5, 1, 0))
+    negatives = torch.sum(torch.where(y_pred < .5, 1, 0))
+    
+    thresholds = torch.arange(start, stop, delta)
+    inds = torch.arange(0, thresholds.shape(0))
+    tprs = torch.zeros(thresholds.shape(0), 1)
+    fprs = torch.zeros(thresholds.shape(0), 1)
+
+    return 0
 
 def _torch_abs2(x):
     return torch.sqrt(torch.pow(x, 2))
@@ -72,6 +140,7 @@ class ContrastiveLoss(torch.nn.Module):
         if torch.isnan(loss_contrastive):
             print("to nan!")
         return loss_contrastive
+
 
 def xentropy_cost(x_target, x_pred):
     assert x_target.size() == x_pred.size(), "size fail ! "+str(x_target.size()) + " " + str(x_pred.size())
