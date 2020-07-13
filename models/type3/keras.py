@@ -3,7 +3,7 @@ from tensorflow.keras import Input, Model
 from tensorflow.keras.layers import Dense
 
 from dataset.makeTrainingData import makeSmartNData
-from models.eval import eval_normal_ann_l2, eval_chopra_ann
+from models.evalfunctions import eval_normal_ann_l2, eval_chopra_ann
 from models.utils import normalizeBatchSize, euclidean_distance, \
     eucl_dist_output_shape, makeAndCompileNormalModel
 from utils.KerasCallbacks import callbackdict, CustomModelCheckPoint

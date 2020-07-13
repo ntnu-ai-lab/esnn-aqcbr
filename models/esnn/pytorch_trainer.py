@@ -3,7 +3,7 @@ import torch
 from torch.nn import functional as F
 import pytorch_lightning as pl
 from models.esnn.pytorch_model import ESNNModel
-from utils.torch import ContrastiveLoss, RAdam, ESNNloss
+from utils.my_torch_utils import ContrastiveLoss, RAdam, ESNNloss
 from torch.optim.lr_scheduler import LambdaLR
 from torch.optim import RMSprop
 import numpy as np

@@ -303,7 +303,7 @@ def adapt(df, featuremapper, targetmapper, featurecols, targetcols, datadict,
     mappedfeaturedf = featuremapper.fit_transform(
         df.loc[:, featurecols].copy())
     mappedtargetdf = targetmapper.fit_transform(df.loc[:, targetcols].copy())
-
+    
     # get the mapped values as numpy arrays
     targets = mappedtargetdf.values
     features = mappedfeaturedf.values

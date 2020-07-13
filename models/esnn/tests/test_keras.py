@@ -1,6 +1,6 @@
 import time
 import numpy as np
-from models.eval import eval_dual_ann
+from models.evalfunctions import eval_dual_ann
 from sklearn.metrics import matthews_corrcoef
 from dataset.dataset import Dataset
 from dataset.dataset_to_sklearn import fromDataSetToSKLearn

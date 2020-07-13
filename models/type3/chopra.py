@@ -2,7 +2,7 @@
 import torch
 from torch.nn import functional as F
 import pytorch_lightning as pl
-from utils.torch import ContrastiveLoss, RAdam
+from utils.my_torch_utils import ContrastiveLoss, RAdam
 from torch.optim.lr_scheduler import LambdaLR
 from torch.optim import RMSprop
 import numpy as np

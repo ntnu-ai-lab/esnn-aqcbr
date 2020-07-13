@@ -52,55 +52,67 @@ def _torch_abs(x1, x2):
     return torch.sqrt(torch.pow(x1-x2, 2))
 
 sent_value = [2]
-sent_value_tensor = torch.FloatTensor(sent_value)
+sent_value_tensor = torch.tensor(sent_value, device='cuda:0')
 
 sent_value_zero = [0]
-sent_value_zero_tensor = torch.FloatTensor(sent_value_zero)
+sent_value_zero_tensor = torch.tensor(sent_value_zero, device='cuda:0')
 
 sent_value_one = [1]
-sent_value_one_tensor = torch.FloatTensor(sent_value_one)
+sent_value_one_tensor = torch.tensor(sent_value_one, device='cuda:0')
 
 sent_value_two = [2]
-sent_value_two_tensor = torch.FloatTensor(sent_value_two)
+sent_value_two_tensor = torch.tensor(sent_value_two, device='cuda:0')
 
 sent_value_three = [3]
-sent_value_three_tensor = torch.FloatTensor(sent_value_three)
+sent_value_three_tensor = torch.tensor(sent_value_three, device='cuda:0')
 
-def torch_auc_roc(y_pred, y_true, start, stop, delta):
+def torch_auc_roc(y_true, y_pred, start, stop, delta):
     """
 
     """
     #true_positives = torch.sum(torch.where(y_pred >= .5, 1, 0))
     #negatives = torch.sum(torch.where(y_pred < .5, 1, 0))
     
+    # this holds all the thredholds
     thresholds = torch.arange(start, stop, delta)
+    # this holds the indexes of all the threholds for us to store in tables
     inds = torch.arange(0, thresholds.shape[0])
-    tprs = torch.zeros(thresholds.shape[0], 1)
-    fprs = torch.zeros(thresholds.shape[0], 1)
+    # these two tensors stores all the true positive rates and false postive rates.
+    tprs = torch.zeros(thresholds.shape[0], 1, device='cuda:0')
+    fprs = torch.zeros(thresholds.shape[0], 1, device='cuda:0')
 
+    n_same = torch.sum(torch.where(y_true == sent_value_one_tensor, sent_value_one_tensor, sent_value_zero_tensor))
+
+    n_diff = torch.sum(torch.where(y_true == sent_value_zero_tensor, sent_value_one_tensor, sent_value_zero_tensor))
     for t, i in zip(thresholds, inds):
+        # which of the network predictions are above the current threshold
         y_pos_thressed = torch.where(y_pred >= t, sent_value_two_tensor, sent_value_zero_tensor)
+        # which of the network predictions are below the current threshold
         y_neg_thressed = torch.where(y_pred < t, sent_value_two_tensor, sent_value_zero_tensor)
 
+        # add the ones above the thresholds to y_true so we can check who is over..
         pos_check = torch.add(y_pos_thressed, y_true)
         tp = torch.sum(torch.where(pos_check == sent_value_three_tensor, sent_value_one_tensor, sent_value_zero_tensor))
 
-        neg_check = torch.add(y_neg_thressed, y_true)
-        tn_corr = torch.sum(torch.where(neg_check == sent_value_zero_tensor, sent_value_one_tensor, sent_value_zero_tensor))
+        #neg_check = torch.add(y_neg_thressed, y_true)
+        #tn_corr = torch.sum(torch.where(neg_check == sent_value_zero_tensor, sent_value_one_tensor, sent_value_zero_tensor))
 
         fp = torch.sum(torch.where(pos_check == sent_value_two_tensor, sent_value_one_tensor, sent_value_zero_tensor))
-        fn = torch.sum(torch.where(neg_check == sent_value_two_tensor, sent_value_one_tensor, sent_value_zero_tensor))
-        tn = torch.sum(torch.where(neg_check == sent_value_three_tensor, sent_value_one_tensor, sent_value_zero_tensor))
-
-        tprs[i] = tp / (tp+fn)
-        fprs[i] = fp / (fp+tn)
+        #fn = torch.sum(torch.where(neg_check == sent_value_two_tensor, sent_value_one_tensor, sent_value_zero_tensor))
+        #tn = torch.sum(torch.where(neg_check == sent_value_three_tensor, sent_value_one_tensor, sent_value_zero_tensor))
+        tp = tp.double()
+        fp = fp.double()
+        #tn = tn.double()
+        #fn = fn.double()
+        tprs[i] = tp / (n_same)
+        fprs[i] = fp / (n_diff)
 
     #for tpr, fpr in zip(tprs, fprs):
-    auc = torch.zeros(1, 1)
-    width = torch.zeros(1, 1)
-    avg_height = torch.zeros(1, 1)
+    auc = torch.zeros(1, 1, device='cuda:0')
+    #width = torch.zeros(1, 1, device='cuda:0')
+    #avg_height = torch.zeros(1, 1, device='cuda:0')
     for i in range(1, tprs.shape[0]):
-        width = fprs[i]-fprs[i-1]
+        width = fprs[i-1]-fprs[i]
         avg_height = (tprs[i]+tprs[i-1])/2.0
         auc += width*avg_height
 
@@ -117,6 +129,8 @@ def torch_auc_roc_mm(y_pred, y_true, start, stop, delta):
     inds = torch.arange(0, thresholds.shape(0))
     tprs = torch.zeros(thresholds.shape(0), 1)
     fprs = torch.zeros(thresholds.shape(0), 1)
+
+    # filter = y_pred 
 
     return 0
 

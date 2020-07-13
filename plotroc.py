@@ -6,7 +6,7 @@ import tensorflow.keras
 from utils.plotting import plotROC
 from utils.runutils import getParser, parseMethod, getArgs
 from dataset.dataset import Dataset
-from models.eval import sillouettescore
+from models.evalfunctions import sillouettescore
 
 import matplotlib
 from dataset.dataset_to_sklearn import fromDataSetToSKLearn

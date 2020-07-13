@@ -10,7 +10,7 @@ import numpy as np
 from utils.newtorcheval import (ChopraTorchEvaler, GabelTorchEvaler,
     TorchEvaler, runevaler)
 from models.esnn.pytorch_trainer import ESNNSystem
-from models.eval import eval_dual_ann, eval_gabel_ann
+from models.evalfunctions import eval_dual_ann, eval_gabel_ann
 parser = HyperOptArgumentParser(strategy='random_search')
 
 # init cluster

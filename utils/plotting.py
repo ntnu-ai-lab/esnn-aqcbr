@@ -940,13 +940,13 @@ def getCorrespondingMethodValue(row, df, method):
                       & (row["n"] == df["n"])]['method_mean'].iloc[0]
 
 
-from models.eval import _eval_dual_ann
+from models.evalfunctions import _eval_dual_ann
 
 def plotROC(save_directory, trainedmodel, randommodel,
             filename, font_scale,
             allfeatures, alltargets, train, test,
             pdf=True):
-    from models.eval import roc
+    from models.evalfunctions import roc
     positive_label = [1, 0]
     modelinput = allfeatures
     modeltargets = alltargets

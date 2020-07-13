@@ -77,7 +77,7 @@ def makematrixdata(model, data, targets, k, type=0):
     #print(ret.head(2))
     return ret
 
-def plot2heatmap(df, k, annot=True, outputfile=""):
+def plot2heatmap(df, k, annot=True, outputfile="", plotclasscolor=False):
     plt.clf()
     plt.cla()
     plt.close()

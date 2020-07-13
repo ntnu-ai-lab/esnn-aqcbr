@@ -16,8 +16,8 @@ from sklearn.metrics import matthews_corrcoef
 from scipy.stats import pearsonr
 import seaborn as sns
 import pandas as pd
-# from models.eval import roc
-from utils.torch import torch_auc_roc
+# from models.evalfunctions import roc
+from utils.my_torch_utils import torch_auc_roc
 
 def getpearsons(df, col1, col2):
     labelarr = df.as_matrix(columns=col1).squeeze()
@@ -293,6 +293,7 @@ class TorchEvaler():
             torch.float32).to('cuda:0')
         self.y1 = torch.from_numpy(self.y1).to(torch.float32).to('cuda:0')
         self.y2 = torch.from_numpy(self.y2).to(torch.float32).to('cuda:0')
+        #self.labels = torch.from_numpy(self.targets[:].astype('float')).to(torch.float32).to('cuda:0')
         self.labels = torch.from_numpy(self.targets[:].astype('float')).to(torch.float32).to('cuda:0')
         # set the path for the callbacks
         self.trainerio = TrainerIOMixin()
@@ -320,10 +321,10 @@ class TorchEvaler():
         loss = criterion(y_hat, self.labels, self.y1,
                          self.y2, inner_output1, inner_output2)
         y_hatc = y_hat.clone()
-        y_hatc = y_hatc.detach().cpu().numpy()
-        rocs = roc_auc_score(self.labels.cpu().numpy(), y_hatc)
+        # y_hatc = y_hatc.detach().cpu().numpy()
+        #rocs = torch_auc_roc(self.labels, y_hatc, 0.01, 0.99, 0.05)
         #return loss+(2*(1-rocs))
-        return 1.0-rocs
+        return loss
 
 
     def myeval(self, model, epochs, optim, criterion,

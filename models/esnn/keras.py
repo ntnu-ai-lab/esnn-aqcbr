@@ -1,5 +1,5 @@
 from dataset.dataset_to_sklearn import *
-from models.eval import eval_dual_ann
+from models.evalfunctions import eval_dual_ann
 from tensorflow.keras.layers import Dense, Input, Lambda
 from tensorflow.keras.models import Model
 

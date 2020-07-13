@@ -2,7 +2,7 @@ from tensorflow.keras import Model, Input
 from tensorflow.keras.layers import Subtract, Dense, Lambda, Concatenate
 from tensorflow.keras.models import clone_model
 
-from models.eval import eval_dual_ann
+from models.evalfunctions import eval_dual_ann
 from dataset.makeTrainingData import makeGabelTrainingData,\
     makeDualSharedArchData
 from models.utils import normalizeBatchSize,  makeAndCompileNormalModel,\

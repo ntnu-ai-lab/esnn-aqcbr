@@ -2,9 +2,9 @@ from dataset.dataset_to_sklearn import fromDataSetToSKLearn
 from models.esnn.pytorch_model import ESNNModel
 from models.esnn.pytorch_trainer import ESNNSystem
 from dataset.dataset import Dataset
-from utils.torch import TorchSKDataset
+from utils.my_torch_utils import TorchSKDataset
 from pytorch_lightning import Trainer
-from models.eval import eval_dual_ann
+from models.evalfunctions import eval_dual_ann
 from torch.utils.data import DataLoader
 import numpy as np
 from models.esnn.tests.pytorch_esnn_test import ESNNTest

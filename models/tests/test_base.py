@@ -9,11 +9,11 @@ import os
 import unittest
 import random
 from dataset.dataset import Dataset
-from utils.torch import GabelTorchDataset, TorchSKDataset
+from utils.my_torch_utils import GabelTorchDataset, TorchSKDataset
 from pytorch_lightning import Trainer
 from torch.utils.data import DataLoader
 import numpy as np
-from models.eval import eval_gabel_ann, eval_dual_ann
+from models.evalfunctions import eval_gabel_ann, eval_dual_ann
 from sklearn.metrics import matthews_corrcoef
 from models.type2.gabel import GabelTrainer
 from models.esnn.pytorch_trainer import ESNNSystem

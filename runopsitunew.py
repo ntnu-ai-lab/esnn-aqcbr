@@ -17,13 +17,13 @@ import torch
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from sklearn.metrics import matthews_corrcoef
-from utils.torch import TorchSKDataset
+from utils.my_torch_utils import TorchSKDataset
 
 from dataset.dataset import Dataset
 from models.esnn.pytorch_model import ESNNModel
 from models.esnn.pytorch_trainer import ESNNSystem
 from models.esnn.tests.pytorch_esnn_test import ESNNTest
-from models.eval import eval_dual_ann, eval_gabel_ann
+from models.evalfunctions import eval_dual_ann, eval_gabel_ann
 from models.type2.gabel import GabelTrainer
 from torch.utils.data import DataLoader
 from utils.newtorcheval import (ChopraTorchEvaler, GabelTorchEvaler,
