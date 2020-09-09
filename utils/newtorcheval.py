@@ -20,12 +20,12 @@ import pandas as pd
 from utils.my_torch_utils import torch_auc_roc
 
 def getpearsons(df, col1, col2):
-    labelarr = df.as_matrix(columns=col1).squeeze()
+    labelarr = np.squeeze(df[col1].values)
     newarr = np.zeros_like(labelarr)
     for i in range(0,labelarr.shape[0]):
         newarr[i] = int(labelarr[i] == "failure")
 
-    effectarr = df.as_matrix(columns=col2).squeeze()
+    effectarr = np.squeeze(df[col2].values)
     pc = pearsonr(effectarr, newarr)
     return pc
 
@@ -47,7 +47,8 @@ def pairplot(dsl, output, k):
 
     df['class'] = df['class'].apply(lambda x: remap(x))
 
-    ax = sns.pairplot(df, vars=wanteddatacols, hue="class")
+    ax = sns.pairplot(df, vars=wanteddatacols, hue="class",
+                      hue_order=["success", "failure"])
 
     pc = getpearsons(df, labelcols, ["wind effect"])
     print(f"pearsonscorr: {pc[0]} , {pc[1]}")
@@ -75,10 +76,10 @@ def runevaler(datasetname, epochs, models, torchevalers, evalfuncs,
 
     data = dsl.getFeatures()
     target = dsl.getTargets()
-#print the data dist..
-    #pairplot(dsl,
-    #         filenamepostfix+"pairplot", 10)
-
+    #print the data dist..
+    pairplot(dsl,
+             prefix+"pairplot", 10)
+    sys.exit(0fg)
     datasetinfo = dsl.dataset.datasetInfo
     # if "augmentTrainingData" in datasetinfo:
     #     func = datasetinfo["augmentTrainingData"]

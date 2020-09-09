@@ -98,6 +98,7 @@ def parseMethod(methodstring):
 
     return methodname, retdict
 
+
 def str2bool(v):
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
         return True
@@ -105,6 +106,7 @@ def str2bool(v):
         return False
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
+
 
 def getParser():
     parser = argparse.ArgumentParser(description='train NN classification'

@@ -135,9 +135,12 @@ def plot2heatmap(df, k, annot=True, outputfile="", plotclasscolor=False):
     #closestnames = np.expand_dims(closestnames,axis=1)
     #correctvalues = np.expand_dims(correctvalues, axis=1)
     correctvalues = correctdf.transpose().iloc[:,:k].astype(int).values
-    closestnamesvalues = closestnames.values
+    if plotclasscolor is True:
+        resulaxisnot = closestnames.values
+    else:
+        resulaxisnot = closestnames
     sns.heatmap(correctvalues,
-                ax=ax21,  annot=closestnamesvalues, cmap="YlGnBu",
+                ax=ax21,  annot=resulaxisnot, cmap="YlGnBu",
                 cbar=False, xticklabels=False, fmt="",
                 yticklabels=False, vmin=0, vmax=1)
     uval = np.squeeze(correctvalues)
